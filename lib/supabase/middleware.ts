@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/lib/database.types";
 import type { UserType } from "@/lib/database.types";
+import { demoPreviewEnabled } from "@/features/dev/demo";
+import { mockModeEnabled, mockUser, parseMockRole, MOCK_ROLE_COOKIE } from "./mock";
 
 /** Paths reachable without a session. */
 const PUBLIC_PATHS = [
@@ -22,12 +24,22 @@ const HOME: Record<UserType, string> = {
 };
 
 function isPublic(pathname: string) {
+  if (demoPreviewEnabled() && (pathname === "/dev" || pathname.startsWith("/dev/"))) return true;
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  const user = mockModeEnabled()
+    ? mockUser(parseMockRole(request.cookies.get(MOCK_ROLE_COOKIE)?.value))
+    : await getVerifiedUser(request, (r) => (response = r));
+
+  return route(request, response, user);
+}
+
+/** Real mode: refresh the session cookie and verify the user with Supabase. */
+async function getVerifiedUser(request: NextRequest, setResponse: (r: NextResponse) => void) {
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -40,10 +52,11 @@ export async function updateSession(request: NextRequest) {
           for (const { name, value } of cookiesToSet) {
             request.cookies.set(name, value);
           }
-          response = NextResponse.next({ request });
+          const response = NextResponse.next({ request });
           for (const { name, value, options } of cookiesToSet) {
             response.cookies.set(name, value, options);
           }
+          setResponse(response);
         },
       },
     },
@@ -54,7 +67,14 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  return user;
+}
 
+function route(
+  request: NextRequest,
+  response: NextResponse,
+  user: { app_metadata?: Record<string, unknown> } | null,
+) {
   const { pathname, search } = request.nextUrl;
 
   if (!user) {

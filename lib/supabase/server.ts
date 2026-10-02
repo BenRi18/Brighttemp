@@ -1,13 +1,22 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/database.types";
+import { mockModeEnabled, createMockClient, parseMockRole, MOCK_ROLE_COOKIE } from "./mock";
+
+type ServerClient = ReturnType<typeof createServerClient<Database>>;
 
 /**
  * Supabase client for Server Components, Server Actions and Route Handlers.
  * Runs as the signed-in user, so every query is subject to RLS.
  */
-export async function createClient() {
+export async function createClient(): Promise<ServerClient> {
   const cookieStore = await cookies();
+
+  // Preview mode (development only): answer from sample data instead of Supabase.
+  if (mockModeEnabled()) {
+    const role = parseMockRole(cookieStore.get(MOCK_ROLE_COOKIE)?.value);
+    return createMockClient(role) as ServerClient;
+  }
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

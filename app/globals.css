@@ -9,3 +9,14 @@
   --muted: #5e7370;
   --line: #d5dfd8;
 }
+
+/* Headings use the display face, matching the original marketing design. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display;
+    letter-spacing: -0.028em;
+  }
+}
