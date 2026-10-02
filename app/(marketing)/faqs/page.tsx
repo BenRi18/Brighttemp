@@ -6,7 +6,7 @@ const FAQS: [string, string][] = [
   ["Can I book a locum for the same day?", "Yes, if a compliant locum has that day marked as available. Same-day bookings are flagged automatically and carry a higher booking fee, and may need a quick approval from us before they're confirmed."],
   ["Who decides the hourly rate?", "The locum does. They set it on their profile and can request a change at any time. Practices see the rate before they book."],
   ["What happens if we need to cancel?", "You can cancel from your bookings page. The system records who cancelled, when, and how much notice was given, then applies the published cancellation fee if it falls inside the notice window."],
-  ["How long does approval take?", "New practices and locums are both reviewed before they can book or appear in search. For locums that means checking six compliance documents, so upload them at registration to avoid a wait."],
+  ["How long does approval take?", "New practices and locums are both reviewed before they can book or appear in search. For locums that means checking your compliance documents, so upload them at registration to avoid a wait."],
 ];
 
 export default function FaqsPage() {

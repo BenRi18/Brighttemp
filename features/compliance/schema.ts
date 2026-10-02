@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const DOC_TYPES = [
   "gdc_registration",
+  "photo_id",
   "dbs",
   "indemnity_insurance",
   "hepatitis_b",
@@ -11,7 +12,8 @@ export const DOC_TYPES = [
 
 export const DOC_LABELS: Record<(typeof DOC_TYPES)[number], string> = {
   gdc_registration: "GDC registration",
-  dbs: "DBS check",
+  photo_id: "Photo ID",
+  dbs: "Enhanced DBS check",
   indemnity_insurance: "Indemnity insurance",
   hepatitis_b: "Hepatitis B evidence",
   cpr_certificate: "CPR certificate",

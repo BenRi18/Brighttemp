@@ -3,7 +3,8 @@ import { HeroSearch } from "@/features/search/components/hero-search";
 
 const DOCS = [
   ["GDC registration", "Number verified, renewal date tracked"],
-  ["DBS check", "Enhanced, with issue date on file"],
+  ["Photo ID", "Passport or driving licence, checked against the profile"],
+  ["Enhanced DBS check", "Enhanced certificate, with issue date on file"],
   ["Indemnity insurance", "Certificate and cover period"],
   ["Hepatitis B", "Evidence of immunity"],
   ["CPR certificate", "In-date resuscitation training"],
@@ -28,7 +29,8 @@ export default function HomePage() {
             Find cover for Thursday <span className="block">before lunch today.</span>
           </h1>
           <p className="mt-6 max-w-[52ch] text-lg text-muted">
-            Search vetted dental nurses, hygienists and receptionists by date, distance and rate.
+            Search dental nurses, hygienists, orthodontic therapists and receptionists by date,
+            distance and rate.
             Book the one you want. Pay them their rate directly — and pay us one flat fee per booking.
           </p>
           <HeroSearch />
@@ -42,7 +44,7 @@ export default function HomePage() {
 
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             <div className="flex flex-col rounded-2xl border border-line bg-white p-8">
-              <h3 className="text-2xl font-extrabold tracking-tight">I run a practice</h3>
+              <h3 className="text-2xl font-extrabold tracking-tight">I am a dental practice</h3>
               <p className="mt-2 text-muted">Cover a sickness, a holiday or a permanent gap — without ringing round five agencies.</p>
               <ul className="my-6 space-y-2 text-[15px]">
                 {["Search by role, date, postcode and availability",
@@ -109,7 +111,7 @@ export default function HomePage() {
             Nobody reaches your search results uncleared.
           </h2>
           <p className="mt-3 max-w-[52ch] text-lg text-muted">
-            We hold and monitor six documents for every locum, each checked by our team and tracked to its expiry date.
+            We hold and monitor seven documents for every locum, each checked by our team and tracked to its expiry date.
           </p>
 
           <div className="mt-8 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">

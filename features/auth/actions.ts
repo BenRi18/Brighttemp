@@ -100,11 +100,13 @@ async function signUp(
   };
 }
 
-export const signUpPractice = (_: ActionState, formData: FormData) =>
-  signUp(formData, "practice");
+export async function signUpPractice(_: ActionState, formData: FormData) {
+  return signUp(formData, "practice");
+}
 
-export const signUpLocum = (_: ActionState, formData: FormData) =>
-  signUp(formData, "locum");
+export async function signUpLocum(_: ActionState, formData: FormData) {
+  return signUp(formData, "locum");
+}
 
 // ---------------------------------------------------------------------
 // Password reset

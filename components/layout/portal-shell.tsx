@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Wordmark } from "@/components/layout/wordmark";
 import type { ReactNode } from "react";
 
 export type NavItem = { href: string; label: string };
@@ -18,10 +19,7 @@ export function PortalShell({
     <div className="min-h-screen bg-paper">
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex h-[70px] max-w-6xl items-center gap-6 px-6">
-          <Link href="/" className="flex items-center gap-2 text-xl font-extrabold tracking-tight">
-            <span className="h-3.5 w-3.5 rotate-12 rounded-[3px] bg-amber" aria-hidden />
-            Brighttemp
-          </Link>
+          <Wordmark size="sm" />
           <nav className="ml-auto hidden gap-5 text-sm font-medium md:flex">
             {nav.map((i) => (
               <Link key={i.href} href={i.href} className="text-muted hover:text-pine">

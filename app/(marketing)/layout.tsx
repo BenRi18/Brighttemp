@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Wordmark } from "@/components/layout/wordmark";
+import { BRAND } from "@/lib/brand";
 import type { ReactNode } from "react";
 
 const NAV = [
@@ -13,10 +15,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-paper">
       <header className="sticky top-0 z-50 border-b border-line bg-paper/90 backdrop-blur">
         <div className="mx-auto flex h-[70px] max-w-6xl items-center gap-6 px-6">
-          <Link href="/" className="flex items-center gap-2 text-[22px] font-extrabold tracking-tight">
-            <span className="h-3.5 w-3.5 rotate-12 rounded-[3px] bg-amber" aria-hidden />
-            Brighttemp
-          </Link>
+          <Wordmark />
           <nav className="ml-auto hidden gap-6 text-sm font-medium md:flex">
             {NAV.map((i) => (
               <Link key={i.href} href={i.href} className="text-muted hover:text-pine">
@@ -40,9 +39,8 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
       <footer className="bg-[#082926] px-6 py-16 text-[#A9C7C1]">
         <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-4">
           <div>
-            <p className="mb-3 flex items-center gap-2 text-xl font-extrabold text-white">
-              <span className="h-3.5 w-3.5 rotate-12 rounded-[3px] bg-amber" aria-hidden />
-              Brighttemp
+            <p className="mb-3">
+              <Wordmark tone="light" size="sm" />
             </p>
             <p className="max-w-[32ch] text-sm">
               Dental locum cover, booked direct. Locums keep their rate. Practices pay one flat fee.
@@ -67,13 +65,13 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
           <div>
             <h2 className="mb-3 text-sm font-bold text-white">Contact</h2>
             <ul className="space-y-1.5 text-sm">
-              <li><a href="mailto:hello@brighttemp.co.uk">hello@brighttemp.co.uk</a></li>
+              <li><a href={`mailto:${BRAND.supportEmail}`}>{BRAND.supportEmail}</a></li>
               <li>Mon–Fri, 8am–6pm</li>
             </ul>
           </div>
         </div>
         <p className="mx-auto mt-12 max-w-6xl border-t border-white/10 pt-6 text-sm">
-          © {new Date().getFullYear()} Brighttemp Ltd. Registered in England &amp; Wales.
+          © {new Date().getFullYear()} {BRAND.legalName}. Registered in England &amp; Wales.
         </p>
       </footer>
     </div>

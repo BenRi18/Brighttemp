@@ -1,15 +1,21 @@
-"use client";
-
-import { useActionState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { signIn, type ActionState } from "@/features/auth/actions";
 import { AuthCard } from "@/components/layout/auth-card";
-import { Field, SubmitButton, Banner } from "@/components/ui/form";
+import { LoginForm } from "@/features/auth/components/login-form";
 
-export default function LoginPage() {
-  const [state, action] = useActionState<ActionState, FormData>(signIn, {});
-  const next = useSearchParams().get("next") ?? "";
+export const metadata = { title: "Sign in — Brighttemp" };
+
+/**
+ * Reads ?next= and ?error= on the server and hands them to the client form.
+ * Using useSearchParams() in the client instead forces a Suspense boundary
+ * and fails the production build.
+ */
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string; error?: string }>;
+}) {
+  const { next, error } = await searchParams;
+  const safeNext = next?.startsWith("/") ? next : "";
 
   return (
     <AuthCard
@@ -29,16 +35,7 @@ export default function LoginPage() {
         </>
       }
     >
-      <form action={action} noValidate>
-        {state.error ? <Banner tone="error">{state.error}</Banner> : null}
-        <input type="hidden" name="next" value={next} />
-        <Field label="Email" name="email" type="email" autoComplete="email" required
-               errors={state.fieldErrors?.email} />
-        <Field label="Password" name="password" type="password"
-               autoComplete="current-password" required
-               errors={state.fieldErrors?.password} />
-        <SubmitButton>Sign in</SubmitButton>
-      </form>
+      <LoginForm next={safeNext} linkError={error} />
       <p className="mt-4 text-sm">
         <Link href="/forgot-password" className="text-[#5E7370] underline">
           Forgotten your password?

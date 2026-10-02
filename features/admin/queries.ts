@@ -16,7 +16,7 @@ export async function currentFees() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("fees")
-    .select("id, fee_type, day_type, amount, effective_from, roles ( id, name, sort_order )")
+    .select("id, fee_type, day_type, amount, notice_hours_below, effective_from, roles ( id, name, sort_order )")
     .is("effective_to", null)
     .order("effective_from", { ascending: false });
   return data ?? [];

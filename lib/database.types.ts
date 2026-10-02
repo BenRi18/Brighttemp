@@ -1240,56 +1240,23 @@ export type Database = {
     Functions: {
       search_locums: {
         Args: {
-          p_role_id: string;
-          p_date: string;
-          p_start: string;
-          p_finish: string;
-          p_latitude: number;
-          p_longitude: number;
-          p_max_miles?: number;
-          p_min_years?: number;
+          p_role_id: string; p_date: string; p_start: string; p_finish: string;
+          p_latitude: number; p_longitude: number; p_max_miles?: number; p_min_years?: number;
         };
         Returns: {
-          locum_id: string;
-          full_name: string;
-          years_experience: number;
-          distance_miles: number;
-          hourly_rate: number;
-          locum_total: number;
-          booking_fee: number;
-          total_practice_cost: number;
+          locum_id: string; full_name: string; years_experience: number; distance_miles: number;
+          hourly_rate: number; locum_total: number; booking_fee: number; total_practice_cost: number;
         }[];
-        Relationships: [];
       };
       cancel_booking: {
-        Args: {
-          p_booking_id: string;
-          p_actor: string | null;
-          p_actor_type: Database["public"]["Enums"]["actor_type"];
-          p_reason: string | null;
-        };
+        Args: { p_booking_id: string; p_actor: string | null;
+          p_actor_type: Database["public"]["Enums"]["actor_type"]; p_reason: string | null };
         Returns: string;
-        Relationships: [];
       };
-      current_booking_fee: {
-        Args: { p_role_id: string; p_date: string };
-        Returns: number;
-        Relationships: [];
-      };
-      day_type_for: {
-        Args: { p_date: string };
-        Returns: Database["public"]["Enums"]["day_type"];
-        Relationships: [];
-      };
-      refresh_compliance_statuses: {
-        Args: Record<string, never>;
-        Returns: number;
-      };
-      locum_compliance_ok: {
-        Args: { p_locum_id: string };
-        Returns: boolean;
-        Relationships: [];
-      };
+      current_booking_fee: { Args: { p_role_id: string; p_date: string }; Returns: number };
+      day_type_for: { Args: { p_date: string }; Returns: Database["public"]["Enums"]["day_type"] };
+      refresh_compliance_statuses: { Args: Record<string, never>; Returns: number };
+      locum_compliance_ok: { Args: { p_locum_id: string }; Returns: boolean };
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -1299,7 +1266,7 @@ export type Database = {
       actor_type: "practice" | "locum" | "admin" | "system";
       admin_role: "super_admin" | "operations" | "compliance" | "finance";
       booking_status: "requested" | "accepted" | "confirmed" | "completed" | "cancelled" | "disputed";
-      compliance_doc_type: "gdc_registration" | "dbs" | "indemnity_insurance" | "hepatitis_b" | "cpr_certificate" | "infection_control";
+      compliance_doc_type: "gdc_registration" | "dbs" | "indemnity_insurance" | "hepatitis_b" | "cpr_certificate" | "infection_control" | "photo_id";
       compliance_status: "pending" | "under_review" | "approved" | "expiring_soon" | "expired" | "rejected";
       day_type: "weekday" | "weekend" | "bank_holiday";
       fee_type: "booking" | "same_day_surcharge" | "cancellation";
@@ -1320,25 +1287,20 @@ export type Database = {
 
 type PublicSchema = Database["public"];
 
-export type Tables<T extends keyof PublicSchema["Tables"]> =
-  PublicSchema["Tables"][T]["Row"];
-export type InsertDto<T extends keyof PublicSchema["Tables"]> =
-  PublicSchema["Tables"][T]["Insert"];
-export type UpdateDto<T extends keyof PublicSchema["Tables"]> =
-  PublicSchema["Tables"][T]["Update"];
-export type Enums<T extends keyof PublicSchema["Enums"]> =
-  PublicSchema["Enums"][T];
+export type Tables<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Row"];
+export type InsertDto<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Insert"];
+export type UpdateDto<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Update"];
+export type Enums<T extends keyof PublicSchema["Enums"]> = PublicSchema["Enums"][T];
 
-export type Profile   = Tables<"profiles">;
-export type Practice  = Tables<"practices">;
-export type Locum     = Tables<"locums">;
-export type Booking   = Tables<"bookings">;
-export type Invoice   = Tables<"invoices">;
+export type Profile = Tables<"profiles">;
+export type Practice = Tables<"practices">;
+export type Locum = Tables<"locums">;
+export type Booking = Tables<"bookings">;
+export type Invoice = Tables<"invoices">;
 export type ComplianceDocument = Tables<"compliance_documents">;
 
-export type UserType       = Enums<"user_type">;
-export type AccountStatus  = Enums<"account_status">;
-export type BookingStatus  = Enums<"booking_status">;
-export type AdminRole      = Enums<"admin_role">;
-export type SearchResult   =
-  Database["public"]["Functions"]["search_locums"]["Returns"][number];
+export type UserType = Enums<"user_type">;
+export type AccountStatus = Enums<"account_status">;
+export type BookingStatus = Enums<"booking_status">;
+export type AdminRole = Enums<"admin_role">;
+export type SearchResult = Database["public"]["Functions"]["search_locums"]["Returns"][number];

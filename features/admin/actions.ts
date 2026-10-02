@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAccount } from "@/features/auth/session";
 import { enqueue } from "@/features/notifications/enqueue";
-import { approvalSchema, rateDecisionSchema, feeSchema, trustSchema } from "./schema";
+import { approvalSchema, rateDecisionSchema, feeSchema, flatFeeSchema, trustSchema } from "./schema";
 import type { ActionState } from "@/features/auth/actions";
 
 async function adminOnly() {
@@ -186,7 +186,53 @@ export async function updateFee(_: ActionState, formData: FormData): Promise<Act
 
   if (error) return { error: "We couldn't update that fee." };
   revalidatePath("/admin/fees");
+  revalidatePath("/pricing");
   return { message: "Fee updated. New bookings use it from today." };
+}
+
+/**
+ * The same-day surcharge and the cancellation fee. Like booking fees, the
+ * current row is closed and a new one opened, so bookings already made keep
+ * the fee they were quoted.
+ */
+export async function updateFlatFee(_: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = flatFeeSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]> };
+  }
+
+  const account = await adminOnly();
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const { feeType, amount, noticeHoursBelow } = parsed.data;
+
+  if (feeType === "cancellation" && !noticeHoursBelow) {
+    return { fieldErrors: { noticeHoursBelow: ["Set the notice window this fee applies inside"] } };
+  }
+
+  await supabase
+    .from("fees")
+    .update({ effective_to: today })
+    .eq("fee_type", feeType)
+    .is("effective_to", null);
+
+  const { error } = await supabase.from("fees").insert({
+    fee_type: feeType,
+    amount,
+    notice_hours_below: feeType === "cancellation" ? noticeHoursBelow : null,
+    effective_from: today,
+    created_by: account.profile.id,
+  });
+
+  if (error) return { error: "We couldn't update that fee." };
+  revalidatePath("/admin/fees");
+  revalidatePath("/pricing");
+  return {
+    message:
+      feeType === "same_day_surcharge"
+        ? "Same-day surcharge updated."
+        : "Cancellation fee updated.",
+  };
 }
 
 export async function setTrustLevel(_: ActionState, formData: FormData): Promise<ActionState> {

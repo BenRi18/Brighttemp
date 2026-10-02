@@ -12,7 +12,7 @@ export default async function PendingPage() {
       title="We're reviewing your account"
       lede={
         isLocum
-          ? "Once your six compliance documents are approved you'll start appearing in practice searches."
+          ? "Once your compliance documents are approved you'll start appearing in practice searches."
           : "A member of the Brighttemp team is checking your practice details. We'll email you as soon as you can start booking."
       }
     >
