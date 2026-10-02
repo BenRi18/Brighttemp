@@ -4,6 +4,7 @@ import type { Database } from "@/lib/database.types";
 import type { UserType } from "@/lib/database.types";
 import { demoPreviewEnabled } from "@/features/dev/demo";
 import { mockModeEnabled, mockUser, parseMockRole, MOCK_ROLE_COOKIE } from "./mock";
+import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
 
 /** Paths reachable without a session. */
 const PUBLIC_PATHS = [
@@ -31,9 +32,22 @@ function isPublic(pathname: string) {
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const user = mockModeEnabled()
-    ? mockUser(parseMockRole(request.cookies.get(MOCK_ROLE_COOKIE)?.value))
-    : await getVerifiedUser(request, (r) => (response = r));
+  let user = null;
+  if (mockModeEnabled()) {
+    user = mockUser(parseMockRole(request.cookies.get(MOCK_ROLE_COOKIE)?.value));
+  } else {
+    try {
+      user = await getVerifiedUser(request, (r) => (response = r));
+    } catch (error) {
+      // A missing env var or an unreachable Supabase must not take the whole
+      // site down. Treat the visitor as signed out: public pages still render,
+      // and anything protected sends them to sign in rather than erroring.
+      console.error(
+        "[middleware] Could not verify the session:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
 
   return route(request, response, user);
 }
@@ -41,8 +55,8 @@ export async function updateSession(request: NextRequest) {
 /** Real mode: refresh the session cookie and verify the user with Supabase. */
 async function getVerifiedUser(request: NextRequest, setResponse: (r: NextResponse) => void) {
   const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl(),
+    supabaseAnonKey(),
     {
       cookies: {
         getAll() {

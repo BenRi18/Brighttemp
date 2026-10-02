@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/database.types";
 import { mockModeEnabled, createMockClient, parseMockRole, MOCK_ROLE_COOKIE } from "./mock";
+import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
 
 type ServerClient = ReturnType<typeof createServerClient<Database>>;
 
@@ -19,8 +20,8 @@ export async function createClient(): Promise<ServerClient> {
   }
 
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl(),
+    supabaseAnonKey(),
     {
       cookies: {
         getAll() {

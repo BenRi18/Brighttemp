@@ -10,18 +10,27 @@ import { demoPreviewEnabled } from "@/features/dev/demo";
 export async function DevToolbar() {
   if (!demoPreviewEnabled()) return null;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const role = (user?.app_metadata?.user_type as string | undefined) ?? "visitor";
+  // This renders inside the root layout, including on error and 404 pages
+  // where the response has already started. Nothing here may throw, or a
+  // small failure turns every page into a 500.
+  let label = "visitor";
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const role = (user?.app_metadata?.user_type as string | undefined) ?? "visitor";
+    label = user ? `${role} (${user.email})` : "visitor";
+  } catch {
+    label = "not signed in";
+  }
 
   return (
     <Link
       href="/dev"
       className="fixed bottom-4 right-4 z-[100] rounded-full bg-[#12211F] px-4 py-2 text-xs font-semibold text-white shadow-lg hover:bg-pine"
     >
-      Preview · {user ? `${role} (${user.email})` : "visitor"} · switch
+      Preview · {label} · switch
     </Link>
   );
 }
