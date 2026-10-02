@@ -9,6 +9,10 @@ import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
 /** Paths reachable without a session. */
 const PUBLIC_PATHS = [
   "/",
+  // Route handlers authenticate themselves (the cron job and the health
+  // check both require a secret). Without this they are redirected to the
+  // login page and never run.
+  "/api",
   "/login",
   "/register",
   "/forgot-password",
