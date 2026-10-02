@@ -1238,6 +1238,22 @@ export type Database = {
       };
     };
     Functions: {
+      admin_review_locum: {
+        Args: { p_locum_id: string; p_approve: boolean; p_reason?: string | null };
+        Returns: { locum_id: string; is_bookable: boolean; profile_id: string; email: string }[];
+      };
+      admin_review_practice: {
+        Args: { p_practice_id: string; p_approve: boolean; p_reason?: string | null };
+        Returns: { practice_id: string; name: string; owner_profile_id: string; owner_email: string }[];
+      };
+      admin_set_trust_level: {
+        Args: { p_practice_id: string; p_trust_level: Database["public"]["Enums"]["trust_level"] };
+        Returns: undefined;
+      };
+      admin_review_document: {
+        Args: { p_document_id: string; p_approve: boolean; p_reason?: string | null };
+        Returns: { document_id: string; locum_id: string; profile_id: string; email: string; is_bookable: boolean }[];
+      };
       search_locums: {
         Args: {
           p_role_id: string; p_date: string; p_start: string; p_finish: string;

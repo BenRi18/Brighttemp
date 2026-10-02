@@ -17,33 +17,32 @@ export async function reviewPractice(_: ActionState, formData: FormData): Promis
   const parsed = approvalSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Invalid request." };
 
-  const account = await adminOnly();
+  await adminOnly();
   const supabase = await createClient();
   const approved = parsed.data.decision === "approve";
 
-  const { data, error } = await supabase
-    .from("practices")
-    .update({
-      status: approved ? "approved" : "rejected",
-      approved_at: approved ? new Date().toISOString() : null,
-      approved_by: approved ? account.profile.id : null,
-      suspension_reason: approved ? null : parsed.data.reason || null,
-    })
-    .eq("id", parsed.data.id)
-    .select("id, name, email, practice_users ( profile_id, profiles ( email ) )")
-    .single();
+  // Through an admin-only database function: the sensitive columns are not
+  // writable by the authenticated role at all (see 0009_admin_review_functions).
+  const { data, error } = await supabase.rpc("admin_review_practice", {
+    p_practice_id: parsed.data.id,
+    p_approve: approved,
+    p_reason: parsed.data.reason || null,
+  });
 
-  if (error) return { error: "We couldn't record that decision." };
+  if (error) {
+    console.error("[reviewPractice] failed:", error.message);
+    return { error: adminErrorMessage(error.message) };
+  }
 
-  const owner = data.practice_users?.[0];
-  if (owner?.profiles) {
+  const row = Array.isArray(data) ? data[0] : null;
+  if (row?.owner_email) {
     await enqueue(supabase, [
       {
-        profileId: owner.profile_id,
-        recipient: owner.profiles.email,
+        profileId: row.owner_profile_id,
+        recipient: row.owner_email,
         event: approved ? "account_approved" : "account_rejected",
         subject: approved ? "Your practice is approved" : "About your Brighttemp registration",
-        payload: { practice: data.name },
+        payload: { practice: row.name },
       },
     ]);
   }
@@ -61,29 +60,27 @@ export async function reviewLocum(_: ActionState, formData: FormData): Promise<A
   const parsed = approvalSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Invalid request." };
 
-  const account = await adminOnly();
+  await adminOnly();
   const supabase = await createClient();
   const approved = parsed.data.decision === "approve";
 
-  const { data, error } = await supabase
-    .from("locums")
-    .update({
-      status: approved ? "approved" : "rejected",
-      approved_at: approved ? new Date().toISOString() : null,
-      approved_by: approved ? account.profile.id : null,
-      suspension_reason: approved ? null : parsed.data.reason || null,
-    })
-    .eq("id", parsed.data.id)
-    .select("id, is_bookable, profile_id, profiles!locums_profile_id_fkey ( email )")
-    .single();
+  const { data, error } = await supabase.rpc("admin_review_locum", {
+    p_locum_id: parsed.data.id,
+    p_approve: approved,
+    p_reason: parsed.data.reason || null,
+  });
 
-  if (error) return { error: "We couldn't record that decision." };
+  if (error) {
+    console.error("[reviewLocum] failed:", error.message);
+    return { error: adminErrorMessage(error.message) };
+  }
 
-  if (data.profiles) {
+  const row = Array.isArray(data) ? data[0] : null;
+  if (row?.email) {
     await enqueue(supabase, [
       {
-        profileId: data.profile_id,
-        recipient: data.profiles.email,
+        profileId: row.profile_id,
+        recipient: row.email,
         event: approved ? "account_approved" : "account_rejected",
         subject: approved ? "You're approved on Brighttemp" : "About your Brighttemp registration",
       },
@@ -93,7 +90,7 @@ export async function reviewLocum(_: ActionState, formData: FormData): Promise<A
   revalidatePath("/admin/approvals");
   return {
     message: approved
-      ? data.is_bookable
+      ? row?.is_bookable
         ? "Locum approved and now visible in search."
         : "Locum approved. They won't appear in search until their documents are cleared."
       : "Locum rejected.",
@@ -241,12 +238,16 @@ export async function setTrustLevel(_: ActionState, formData: FormData): Promise
 
   await adminOnly();
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("practices")
-    .update({ trust_level: parsed.data.trustLevel })
-    .eq("id", parsed.data.practiceId);
+  const { error } = await supabase.rpc("admin_set_trust_level", {
+    p_practice_id: parsed.data.practiceId,
+    p_trust_level: parsed.data.trustLevel,
+  });
 
-  if (error) return { error: "We couldn't change that setting." };
+  if (error) {
+    console.error("[setTrustLevel] failed:", error.message);
+    return { error: adminErrorMessage(error.message) };
+  }
+
   revalidatePath("/admin/approvals");
   return {
     message:
@@ -254,4 +255,17 @@ export async function setTrustLevel(_: ActionState, formData: FormData): Promise
         ? "Practice can now book instantly."
         : "Practice bookings will need approval.",
   };
+}
+
+/** Database errors, in words an admin can act on. */
+function adminErrorMessage(message: string): string {
+  if (/not authorised|permission denied/i.test(message)) {
+    return "Your account doesn't have permission for that. Sign out and back in, then try again.";
+  }
+  if (/not found/i.test(message)) {
+    return "That record no longer exists — refresh the page.";
+  }
+  return process.env.NODE_ENV === "development"
+    ? `Failed: ${message}`
+    : "We couldn't record that decision. Try again.";
 }
