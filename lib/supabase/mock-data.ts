@@ -320,7 +320,7 @@ export function buildMockData() {
     return {
       id, invoice_number: num, practice_id: ID.prMain, booking_id: b,
       issue_date: issue, due_date: iso(new Date(new Date(`${issue}T00:00:00Z`).getTime() + 14 * 864e5)),
-      subtotal: 30, vat_rate: 0.2, vat_amount: 6, total: 36, status,
+      subtotal: 30, vat_rate: 0, vat_amount: 0, total: 30, status,
       sent_at: status === "draft" ? null : issue, paid_at: status === "paid" ? now() : null,
       notes: null, created_at: now(), updated_at: now(),
       practices: { name: "Bright Smile Dental" },

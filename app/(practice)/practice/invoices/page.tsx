@@ -9,7 +9,7 @@ export default async function PracticeInvoicesPage() {
     <>
       <PageHeading
         title="Invoices"
-        lede="Brighttemp booking fees only. What you pay the locum is settled directly with them."
+        lede="Brighttemp booking fees only, with no VAT added. What you pay the locum is settled directly with them."
       />
 
       {invoices.length === 0 ? (

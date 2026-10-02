@@ -67,7 +67,7 @@ export default async function PracticeBookingPage({
             </div>
           </dl>
           <p className="mt-3 text-xs text-muted">
-            You pay the locum directly. Only the Brighttemp fee is invoiced.
+            You pay the locum directly. Only the Brighttemp fee is invoiced, with no VAT added.
           </p>
         </section>
       </div>

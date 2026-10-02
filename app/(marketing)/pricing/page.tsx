@@ -27,6 +27,7 @@ export default async function PricingPage() {
       <h1 className="text-[clamp(32px,5vw,48px)] font-extrabold tracking-tight">One flat fee, per booking.</h1>
       <p className="mt-4 max-w-[52ch] text-lg text-muted">
         Charged to the practice only. Locums pay nothing, and practices pay nothing to register.
+        No VAT is added — the fee below is what you pay.
       </p>
 
       <div className="mt-10 overflow-x-auto rounded-xl border border-line bg-white">
@@ -65,6 +66,11 @@ export default async function PricingPage() {
           </tbody>
         </table>
       </div>
+
+      <p className="mt-5 max-w-[60ch] text-muted">
+        These fees are not VAT-rated, so nothing is added at invoice. What you pay the locum is
+        separate and settled directly with them.
+      </p>
     </section>
   );
 }

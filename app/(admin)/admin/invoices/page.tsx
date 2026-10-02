@@ -8,7 +8,7 @@ export default async function AdminInvoicesPage() {
 
   return (
     <>
-      <PageHeading title="Invoices" lede="Brighttemp booking fees only — never the locum's pay." />
+      <PageHeading title="Invoices" lede="Brighttemp booking fees only — never the locum's pay. Fees are not VAT-rated, so invoices carry no VAT." />
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-line bg-white p-5">

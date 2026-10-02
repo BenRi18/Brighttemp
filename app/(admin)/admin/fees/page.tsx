@@ -17,7 +17,7 @@ export default async function FeesPage() {
     <>
       <PageHeading
         title="Booking fees"
-        lede="Set what practices pay Brighttemp per booking. Changing a fee closes the old rate and opens a new one from today, so past bookings keep what they were charged."
+        lede="Set what practices pay Brighttemp per booking. No VAT is added to these amounts. Changing a fee closes the old rate and opens a new one from today, so past bookings keep what they were charged."
       />
       <FeeEditor
         roles={roles}

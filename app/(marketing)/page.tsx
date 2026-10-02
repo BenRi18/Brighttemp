@@ -31,7 +31,8 @@ export default function HomePage() {
           <p className="mt-6 max-w-[52ch] text-lg text-muted">
             Search dental nurses, hygienists, orthodontic therapists and receptionists by date,
             distance and rate.
-            Book the one you want. Pay them their rate directly — and pay us one flat fee per booking.
+            Book the one you want. Pay them their rate directly — and pay us one flat fee per
+            booking, with no VAT added.
           </p>
           <HeroSearch />
         </div>
@@ -98,8 +99,10 @@ export default function HomePage() {
             <div className="rounded-2xl border border-amber bg-amber/10 p-7">
               <p className="text-sm font-bold text-amber">Practice → Brighttemp</p>
               <h3 className="mt-3 text-2xl font-extrabold tracking-tight">Our booking fee</h3>
-              <p className="my-3 text-4xl font-extrabold tracking-tight">£25.00 flat</p>
-              <p className="text-[#B7D2CC]">One fee per booking — not per hour, not a percentage.</p>
+              <p className="my-3 text-4xl font-extrabold tracking-tight">£30.00 flat</p>
+              <p className="text-[#B7D2CC]">
+                One fee per booking — not per hour, not a percentage, and no VAT on top.
+              </p>
             </div>
           </div>
         </div>

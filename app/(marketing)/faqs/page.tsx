@@ -2,6 +2,7 @@ export const metadata = { title: "FAQs — Brighttemp" };
 
 const FAQS: [string, string][] = [
   ["How does the locum actually get paid?", "Directly by the practice, at the hourly rate shown on their profile at the time of booking. Brighttemp never holds or deducts from that money. The only invoice we raise is our own booking fee, to the practice."],
+  ["Is VAT added to the booking fee?", "No. The flat booking fee is the whole amount — your invoice shows the fee and nothing else. The locum's pay is separate and goes straight to them."],
   ["Does it cost a locum anything to join?", "No. Registration is free, there's no subscription, and we don't take a percentage of what you earn."],
   ["Can I book a locum for the same day?", "Yes, if a compliant locum has that day marked as available. Same-day bookings are flagged automatically and carry a higher booking fee, and may need a quick approval from us before they're confirmed."],
   ["Who decides the hourly rate?", "The locum does. They set it on their profile and can request a change at any time. Practices see the rate before they book."],
