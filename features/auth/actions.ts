@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseAuthCookie, revokeSessionQuietly } from "@/lib/supabase/sign-out";
 import {
   loginSchema,
   signUpSchema,
@@ -88,16 +89,50 @@ async function signUp(
   });
 
   if (error) {
-    if (error.message.toLowerCase().includes("already registered")) {
-      return { error: "There's already an account with that email. Try signing in." };
-    }
-    return { error: "We couldn't create the account. Try again in a moment." };
+    // Full detail goes to the server log only — the terminal running `npm run dev`
+    // locally, or your host's logs in production.
+    console.error("[signUp] Supabase rejected the signup:", {
+      code: error.code,
+      status: error.status,
+      message: error.message,
+    });
+    return { error: signUpErrorMessage(error.code, error.message) };
   }
 
   return {
     message:
       "Check your email and open the confirmation link to finish setting up your account.",
   };
+}
+
+/** Supabase auth error codes → something a practice manager can act on. */
+function signUpErrorMessage(code: string | undefined, message: string): string {
+  const m = message.toLowerCase();
+  switch (code) {
+    case "user_already_exists":
+    case "email_exists":
+      return "There's already an account with that email. Try signing in.";
+    case "weak_password":
+      return "That password doesn't meet the security rules. Try a longer one with a mix of letters and numbers.";
+    case "over_email_send_rate_limit":
+    case "over_request_rate_limit":
+      return "Too many sign-up attempts in a short time. Wait a few minutes and try again.";
+    case "email_address_invalid":
+      return "That email address can't be used. Check it, or try a different one.";
+    case "signup_disabled":
+    case "email_provider_disabled":
+      return "New registrations are switched off at the moment.";
+    case "unexpected_failure":
+      // Almost always the handle_new_user database trigger failing.
+      return "We couldn't set up your profile. Please try again, or contact us if it keeps happening.";
+  }
+  if (m.includes("already registered")) {
+    return "There's already an account with that email. Try signing in.";
+  }
+  if (process.env.NODE_ENV === "development") {
+    return `Sign-up failed: ${message}${code ? ` (${code})` : ""}`;
+  }
+  return "We couldn't create the account. Try again in a moment.";
 }
 
 export async function signUpPractice(_: ActionState, formData: FormData) {
@@ -151,8 +186,21 @@ export async function updatePassword(
 }
 
 export async function signOut() {
+  const cookieStore = await cookies();
+
+  // Collected before the sign-out, which removes them when it succeeds.
+  const sessionCookies = cookieStore
+    .getAll()
+    .filter((c) => isSupabaseAuthCookie(c.name))
+    .map((c) => c.name);
+
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  await revokeSessionQuietly(supabase);
+
+  // Clear them ourselves, so an unreachable Supabase can't leave the user
+  // signed in — or turn a sign-out into a 500.
+  for (const name of sessionCookies) cookieStore.delete(name);
+
   revalidatePath("/", "layout");
   redirect("/login");
 }

@@ -6,6 +6,7 @@ import { mockModeEnabled, MOCK_ROLE_COOKIE } from "@/lib/supabase/mock";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { DEMO_ACCOUNTS, demoEmail, demoPreviewEnabled } from "./demo";
+import { revokeSessionQuietly } from "@/lib/supabase/sign-out";
 
 /**
  * Signs in as one of the demo accounts and opens the requested page. Uses the
@@ -29,7 +30,7 @@ export async function signInAsDemo(formData: FormData) {
   }
 
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  await revokeSessionQuietly(supabase);
 
   const { error } = await supabase.auth.signInWithPassword({
     email: demoEmail(account.local),
@@ -52,7 +53,7 @@ export async function signOutDemo() {
     redirect("/dev");
   }
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  await revokeSessionQuietly(supabase);
   revalidatePath("/", "layout");
   redirect("/dev");
 }
