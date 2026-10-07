@@ -2,6 +2,7 @@ import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { supabaseServiceRoleKey, supabaseUrl } from "@/lib/env";
+import { resilientFetch } from "./fetch";
 
 /**
  * Service-role client. Bypasses RLS entirely.
@@ -14,5 +15,6 @@ import { supabaseServiceRoleKey, supabaseUrl } from "@/lib/env";
 export function createAdminClient() {
   return createSupabaseClient<Database>(supabaseUrl(), supabaseServiceRoleKey(), {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: { fetch: resilientFetch },
   });
 }

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import { money } from "@/lib/format";
 import { supabaseConfigured } from "@/lib/env";
 
@@ -12,7 +12,7 @@ type Fee = { role_id: string | null; day_type: string | null; amount: number; fe
 async function loadFees(): Promise<{ roles: Role[]; fees: Fee[]; ok: boolean }> {
   if (!supabaseConfigured()) return { roles: [], fees: [], ok: false };
   try {
-    const supabase = await createClient();
+    const supabase = createPublicClient();
     const [{ data: roles, error: rolesError }, { data: fees, error: feesError }] = await Promise.all([
       supabase.from("roles").select("id, name").eq("is_active", true).order("sort_order"),
       supabase.from("fees").select("role_id, day_type, amount, fee_type").is("effective_to", null),
@@ -26,6 +26,13 @@ async function loadFees(): Promise<{ roles: Role[]; fees: Fee[]; ok: boolean }> 
 }
 
 export const metadata = { title: "Pricing — Brighttemp" };
+
+/**
+ * Published fees change rarely, so this page is generated and then re-used for
+ * five minutes rather than queried per visitor. An admin fee change appears
+ * within five minutes; updateFee() also revalidates this path immediately.
+ */
+export const revalidate = 300;
 
 /**
  * Reads the live fees table rather than hard-coding the numbers, so changing a

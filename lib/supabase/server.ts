@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import type { Database } from "@/lib/database.types";
 import { mockModeEnabled, createMockClient, parseMockRole, MOCK_ROLE_COOKIE } from "./mock";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
+import { resilientFetch } from "./fetch";
 
 type ServerClient = ReturnType<typeof createServerClient<Database>>;
 
@@ -23,6 +24,9 @@ export async function createClient(): Promise<ServerClient> {
     supabaseUrl(),
     supabaseAnonKey(),
     {
+      // Survives a dropped keep-alive socket, which otherwise fails a page
+      // render with a bare "fetch failed".
+      global: { fetch: resilientFetch },
       cookies: {
         getAll() {
           return cookieStore.getAll();

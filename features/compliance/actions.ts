@@ -40,7 +40,18 @@ export async function uploadDocument(_: ActionState, formData: FormData): Promis
     .from("compliance")
     .upload(path, file!, { contentType: file!.type, upsert: false });
 
-  if (uploadError) return { error: "We couldn't upload that file. Try again." };
+  if (uploadError) {
+    // The full reason goes to the server log; the locum gets something they
+    // can act on. Swallowing this silently made every failure look identical.
+    console.error("[uploadDocument] Supabase storage rejected the upload:", {
+      bucket: "compliance",
+      path,
+      size: file!.size,
+      type: file!.type,
+      message: uploadError.message,
+    });
+    return { error: storageErrorMessage(uploadError.message) };
+  }
 
   await supabase
     .from("compliance_documents")
@@ -70,6 +81,29 @@ export async function uploadDocument(_: ActionState, formData: FormData): Promis
   return { message: "Uploaded. Brighttemp will review it shortly." };
 }
 
+/** Storage failures, in words a locum or an admin can act on. */
+function storageErrorMessage(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("bucket not found")) {
+    return "Document storage isn't set up yet. Please contact Brighttemp — this one is on us, not you.";
+  }
+  if (m.includes("row-level security") || m.includes("unauthorized") || m.includes("not authorized")) {
+    return "You don't have permission to upload that. Try signing out and back in, and contact us if it continues.";
+  }
+  if (m.includes("exceeded") || m.includes("too large") || m.includes("payload")) {
+    return "That file is too large. The limit is 10MB.";
+  }
+  if (m.includes("mime") || m.includes("content type")) {
+    return "That file type isn't accepted. Upload a PDF, JPG or PNG.";
+  }
+  if (m.includes("duplicate") || m.includes("already exists")) {
+    return "That file has already been uploaded. Refresh the page to see it.";
+  }
+  return process.env.NODE_ENV === "development"
+    ? `Upload failed: ${message}`
+    : "We couldn't upload that file. Try again, and contact us if it keeps happening.";
+}
+
 /**
  * Admin approve/reject. Approving re-runs the bookability trigger, which is
  * what puts a locum into search — there is no separate "activate" step.
@@ -89,17 +123,23 @@ export async function reviewDocument(_: ActionState, formData: FormData): Promis
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("compliance_documents")
-    .update({
-      status: d.decision === "approve" ? "approved" : "rejected",
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: account.profile.id,
-      rejection_reason: d.decision === "reject" ? d.rejectionReason : null,
-    })
-    .eq("id", d.documentId);
 
-  if (error) return { error: "We couldn't record that decision." };
+  // Admin-only database function: the review columns are not writable by the
+  // authenticated role (see 0009_admin_review_functions.sql).
+  const { error } = await supabase.rpc("admin_review_document", {
+    p_document_id: d.documentId,
+    p_approve: d.decision === "approve",
+    p_reason: d.rejectionReason || null,
+  });
+
+  if (error) {
+    console.error("[reviewDocument] failed:", error.message);
+    return {
+      error: /not authorised|permission denied/i.test(error.message)
+        ? "Your account doesn't have permission to review documents."
+        : "We couldn't record that decision. Try again.",
+    };
+  }
 
   revalidatePath("/admin/compliance");
   return { message: d.decision === "approve" ? "Document approved." : "Document rejected." };

@@ -5,6 +5,7 @@ import type { UserType } from "@/lib/database.types";
 import { demoPreviewEnabled } from "@/features/dev/demo";
 import { mockModeEnabled, mockUser, parseMockRole, MOCK_ROLE_COOKIE } from "./mock";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
+import { resilientFetch } from "./fetch";
 
 /** Paths reachable without a session. */
 const PUBLIC_PATHS = [
@@ -62,6 +63,7 @@ async function getVerifiedUser(request: NextRequest, setResponse: (r: NextRespon
     supabaseUrl(),
     supabaseAnonKey(),
     {
+      global: { fetch: resilientFetch },
       cookies: {
         getAll() {
           return request.cookies.getAll();
