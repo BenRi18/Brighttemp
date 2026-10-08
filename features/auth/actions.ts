@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers, cookies } from "next/headers";
+import { cookies } from "next/headers";
+import { siteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseAuthCookie, revokeSessionQuietly } from "@/lib/supabase/sign-out";
 import {
@@ -25,14 +26,6 @@ export type ActionState = {
 
 function invalid(e: z.ZodError): ActionState {
   return { fieldErrors: e.flatten().fieldErrors as Record<string, string[]> };
-}
-
-async function siteUrl() {
-  const h = await headers();
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`
-  );
 }
 
 // ---------------------------------------------------------------------
@@ -74,12 +67,22 @@ async function signUp(
   const parsed = signUpSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return invalid(parsed.error);
 
+  // Refuses to build a link from an internal address, so a misconfigured host
+  // can't email people a URL that won't open.
+  let origin: string;
+  try {
+    origin = await siteUrl();
+  } catch (e) {
+    console.error("[signUp]", e instanceof Error ? e.message : e);
+    return { error: "We can't send confirmation emails right now. Please contact support." };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      emailRedirectTo: `${await siteUrl()}/auth/callback?next=/onboarding/${userType}`,
+      emailRedirectTo: `${origin}/auth/callback?next=/onboarding/${userType}`,
       data: {
         user_type: userType,
         full_name: parsed.data.fullName,
@@ -154,10 +157,16 @@ export async function requestPasswordReset(
   const parsed = forgotPasswordSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return invalid(parsed.error);
 
-  const supabase = await createClient();
-  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${await siteUrl()}/auth/callback?next=/update-password`,
-  });
+  try {
+    const supabase = await createClient();
+    await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+      redirectTo: `${await siteUrl()}/auth/callback?next=/update-password`,
+    });
+  } catch (e) {
+    // Logged, but never shown: the reply below must not differ by outcome, or
+    // it tells an attacker which addresses are registered.
+    console.error("[requestPasswordReset]", e instanceof Error ? e.message : e);
+  }
 
   // Always the same answer, whether or not the address exists.
   return {

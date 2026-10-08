@@ -7,6 +7,7 @@ import { Field, SubmitButton, Banner } from "@/components/ui/form";
 const LINK_ERRORS: Record<string, string> = {
   expired_link: "That link has expired or was already used. Sign in, or request a new one.",
   missing_code: "That link was incomplete. Try opening it again from the email.",
+  bad_link: "That link was incomplete. Try opening it again from the email.",
 };
 
 export function LoginForm({ next, linkError }: { next: string; linkError?: string }) {
