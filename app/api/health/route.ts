@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -45,10 +46,35 @@ export async function GET(request: NextRequest) {
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),
     });
+    // Is the compliance bucket there? Its absence is why uploads fail with
+    // "Bucket not found".
+    let storage: unknown = "not checked (no service role key)";
+    if (service) {
+      try {
+        const { data, error } = await createAdminClient().storage.listBuckets();
+        if (error) {
+          storage = { ok: false, error: error.message };
+        } else {
+          const names = (data ?? []).map((b) => b.name);
+          storage = names.includes("compliance")
+            ? { ok: true, complianceBucket: "present", buckets: names }
+            : {
+                ok: false,
+                complianceBucket: "MISSING",
+                buckets: names,
+                fix: "Run supabase/migrations/0008_storage_compliance.sql",
+              };
+        }
+      } catch (e) {
+        storage = { ok: false, error: (e as Error).message };
+      }
+    }
+
     return NextResponse.json({
       ok: res.ok,
       reachedSupabase: true,
       status: res.status,
+      storage,
       tookMs: Date.now() - started,
       env,
     });

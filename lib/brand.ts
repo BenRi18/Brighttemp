@@ -15,5 +15,5 @@ export const BRAND = {
   platformLead: "Brighttemp",
   platformTail: "Booking Hub",
   legalName: "Brighttemp Ltd",
-  supportEmail: "hello@brighttemp.co.uk",
+  supportEmail: "hello@brighttempbookinghub.co.uk",
 } as const;

@@ -14,7 +14,7 @@ npm run dev
 Apply the migrations in order, then create your first admin:
 
 ```sql
-select public.grant_admin('you@brighttemp.co.uk', 'super_admin');
+select public.grant_admin('you@brighttempbookinghub.co.uk', 'super_admin');
 ```
 
 Regenerate types whenever the schema changes:

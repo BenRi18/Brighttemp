@@ -1,6 +1,7 @@
 import { createPublicClient } from "@/lib/supabase/public";
 import { money } from "@/lib/format";
 import { supabaseConfigured } from "@/lib/env";
+import { BRAND } from "@/lib/brand";
 
 type Role = { id: string; name: string };
 type Fee = { role_id: string | null; day_type: string | null; amount: number; fee_type: string };
@@ -60,7 +61,7 @@ export default async function PricingPage() {
       {!ok ? (
         <p className="mt-10 rounded-xl border border-[#F0DFA8] bg-[#FFF7E0] px-6 py-5 text-[#54451A]">
           Our fees aren&apos;t loading at the moment. Email{" "}
-          <a className="underline" href="mailto:hello@brighttemp.co.uk">hello@brighttemp.co.uk</a>{" "}
+          <a className="underline" href={`mailto:${BRAND.supportEmail}`}>{BRAND.supportEmail}</a>{" "}
           and we&apos;ll send them straight over.
         </p>
       ) : (

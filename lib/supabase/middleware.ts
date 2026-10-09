@@ -21,6 +21,10 @@ const PUBLIC_PATHS = [
   "/auth",
   "/pricing",
   "/faqs",
+  // Search engines get a 307 to /login otherwise, so the sitemap is never read
+  // and robots.txt can't be checked at all.
+  "/robots.txt",
+  "/sitemap.xml",
 ];
 
 const HOME: Record<UserType, string> = {

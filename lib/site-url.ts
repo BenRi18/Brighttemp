@@ -8,9 +8,17 @@
  * http://<ip>:<port>/auth/callback, which nothing outside the server can open.
  *
  * Order of trust:
- *   1. NEXT_PUBLIC_SITE_URL          — set this on the host and nothing else matters
- *   2. x-forwarded-host              — what the proxy says the public name is
- *   3. host                          — last resort
+ *   1. SITE_URL                      — read at runtime; set this one on the host
+ *   2. NEXT_PUBLIC_SITE_URL          — baked in at build time (see below)
+ *   3. x-forwarded-host              — what the proxy says the public name is
+ *   4. host                          — last resort
+ *
+ * SITE_URL comes first for a reason. Next inlines every NEXT_PUBLIC_ variable
+ * into the compiled output at BUILD time — the value is a string literal in the
+ * bundle, not a lookup. So if the host builds the app before that variable is
+ * set, changing it in the control panel afterwards does nothing at all, however
+ * many times you restart. SITE_URL has no such prefix, so it is read fresh on
+ * every request and a restart is enough.
  *
  * A candidate that is an IP address, localhost, or carries a port is rejected
  * in production: it would produce a link no one can open, and failing loudly
@@ -40,15 +48,40 @@ function normalise(url: string) {
 }
 
 /**
- * Absolute origin for links sent out by email, e.g. https://brighttemp.co.uk.
+ * The configured address, ignored in production if it points somewhere nobody
+ * can reach. A stale NEXT_PUBLIC_SITE_URL baked into an old build is the likely
+ * culprit — it would otherwise quietly win and email everyone a localhost link.
+ */
+function configuredSiteUrl(): string | null {
+  const raw = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  if (!raw) return null;
+  const value = normalise(raw);
+  if (process.env.NODE_ENV !== "production") return value;
+  try {
+    if (!usableInProduction(new URL(value).host)) return null;
+  } catch {
+    return null; // not a URL at all
+  }
+  return value;
+}
+
+/**
+ * Absolute origin for links sent out by email, e.g. https://brighttempbookinghub.co.uk.
  * Throws rather than returning something undeliverable.
  */
 export async function siteUrl(): Promise<string> {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL;
-  if (configured) return normalise(configured);
+  const configured = configuredSiteUrl();
+  if (configured) return configured;
 
   const h = await headers();
-  const proto = h.get("x-forwarded-proto")?.split(",")[0].trim() ?? "https";
+  // Always https in production. Next fills x-forwarded-proto in from the
+  // connection it received, which behind a TLS-terminating proxy is the
+  // plain-http hop between proxy and app — and a link emailed as http://
+  // either warns the recipient or gets rewritten by their mail client.
+  const proto =
+    process.env.NODE_ENV === "production"
+      ? "https"
+      : (h.get("x-forwarded-proto")?.split(",")[0].trim() ?? "http");
   const candidates = [h.get("x-forwarded-host"), h.get("host")]
     .filter((v): v is string => Boolean(v))
     .map((v) => v.split(",")[0].trim());
@@ -62,11 +95,24 @@ export async function siteUrl(): Promise<string> {
   if (usable) return normalise(`${proto}://${usable}`);
 
   throw new Error(
-    "NEXT_PUBLIC_SITE_URL is not set and the request's host header is not a public " +
-      "address, so any link emailed from here would be unopenable. Set " +
-      "NEXT_PUBLIC_SITE_URL to the live domain (for example https://brighttemp.co.uk) " +
-      "in the hosting environment variables and restart the app.",
+    "SITE_URL is not set to a public address, and the request's host header is not one " +
+      "either, so any link emailed from here would be unopenable. Set " +
+      "SITE_URL to the live domain (https://brighttempbookinghub.co.uk) in the " +
+      "hosting environment variables and restart the app.",
   );
+}
+
+/** The live domain, for anything built without a request to read — sitemap, robots, metadata. */
+export const CANONICAL_URL = "https://brighttempbookinghub.co.uk";
+
+/**
+ * Site address outside a request. Uses the configured value when there is one,
+ * so a staging deploy describes itself correctly, and otherwise the live
+ * domain. Unlike siteUrl() this never throws — a sitemap is not worth failing
+ * a build over.
+ */
+export function canonicalUrl() {
+  return configuredSiteUrl() ?? CANONICAL_URL;
 }
 
 /**
