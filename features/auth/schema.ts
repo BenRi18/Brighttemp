@@ -30,19 +30,44 @@ export const loginSchema = z.object({
   next: z.string().optional(),
 });
 
-export const signUpSchema = z
+/** Everything both signups ask for, whoever is registering. */
+const credentials = {
+  email,
+  phone,
+  password,
+  confirmPassword: z.string(),
+  terms: z.literal("on", { errorMap: () => ({ message: "Accept the terms to continue" }) }),
+};
+
+const passwordsMatch = {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+};
+
+/** A locum registers as a person, so the name is in two parts. */
+export const locumSignUpSchema = z
   .object({
-    fullName: z.string().trim().min(2, "Enter your name").max(120),
-    email,
-    phone,
-    password,
-    confirmPassword: z.string(),
-    terms: z.literal("on", { errorMap: () => ({ message: "Accept the terms to continue" }) }),
+    firstName: z.string().trim().min(1, "Enter your first name").max(60),
+    lastName: z.string().trim().min(1, "Enter your surname").max(60),
+    ...credentials,
   })
-  .refine((d) => d.password === d.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+  .refine((d) => d.password === d.confirmPassword, passwordsMatch);
+
+/**
+ * A practice registers as a business. The address is taken here rather than at
+ * onboarding so we know from the first screen whereabouts in the country they
+ * are — it is pre-filled into the onboarding form, not asked for twice.
+ */
+export const practiceSignUpSchema = z
+  .object({
+    practiceName: z.string().trim().min(2, "Enter the practice name").max(160),
+    addressLine1: z.string().trim().min(2, "Enter the first line of the address").max(160),
+    addressLine2: z.string().trim().max(160).optional().or(z.literal("")),
+    city: z.string().trim().min(2, "Enter the town or city").max(80),
+    postcode: ukPostcode,
+    ...credentials,
+  })
+  .refine((d) => d.password === d.confirmPassword, passwordsMatch);
 
 export const forgotPasswordSchema = z.object({ email });
 
@@ -75,6 +100,7 @@ export const locumOnboardingSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
-export type SignUpInput = z.infer<typeof signUpSchema>;
+export type LocumSignUpInput = z.infer<typeof locumSignUpSchema>;
+export type PracticeSignUpInput = z.infer<typeof practiceSignUpSchema>;
 export type PracticeOnboardingInput = z.infer<typeof practiceOnboardingSchema>;
 export type LocumOnboardingInput = z.infer<typeof locumOnboardingSchema>;

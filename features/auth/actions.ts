@@ -8,7 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseAuthCookie, revokeSessionQuietly } from "@/lib/supabase/sign-out";
 import {
   loginSchema,
-  signUpSchema,
+  locumSignUpSchema,
+  practiceSignUpSchema,
   forgotPasswordSchema,
   updatePasswordSchema,
   practiceOnboardingSchema,
@@ -60,13 +61,17 @@ export async function signIn(_: ActionState, formData: FormData): Promise<Action
 // practice or locum record once they land with a session.
 // ---------------------------------------------------------------------
 
-async function signUp(
-  formData: FormData,
+/**
+ * The shared half of both signups: create the auth user, carrying whatever
+ * profile details the form collected into user metadata. The handle_new_user
+ * trigger reads them from there when it writes the profile row.
+ */
+async function createAccount(
   userType: Exclude<UserType, "admin">,
+  email: string,
+  password: string,
+  metadata: Record<string, string | null>,
 ): Promise<ActionState> {
-  const parsed = signUpSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return invalid(parsed.error);
-
   // Refuses to build a link from an internal address, so a misconfigured host
   // can't email people a URL that won't open.
   let origin: string;
@@ -79,15 +84,11 @@ async function signUp(
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
-    email: parsed.data.email,
-    password: parsed.data.password,
+    email,
+    password,
     options: {
       emailRedirectTo: `${origin}/auth/callback?next=/onboarding/${userType}`,
-      data: {
-        user_type: userType,
-        full_name: parsed.data.fullName,
-        phone: parsed.data.phone || null,
-      },
+      data: { user_type: userType, ...metadata },
     },
   });
 
@@ -138,12 +139,42 @@ function signUpErrorMessage(code: string | undefined, message: string): string {
   return "We couldn't create the account. Try again in a moment.";
 }
 
-export async function signUpPractice(_: ActionState, formData: FormData) {
-  return signUp(formData, "practice");
+export async function signUpPractice(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = practiceSignUpSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return invalid(parsed.error);
+  const d = parsed.data;
+
+  return createAccount("practice", d.email, d.password, {
+    // A practice registers as a business, so the practice name is the name on
+    // the account — it is what the portal header and the admin lists show.
+    first_name: d.practiceName,
+    last_name: "",
+    phone: d.phone || null,
+    // Carried through to pre-fill the onboarding form rather than asked twice.
+    practice_name: d.practiceName,
+    address_line1: d.addressLine1,
+    address_line2: d.addressLine2 || null,
+    city: d.city,
+    postcode: d.postcode,
+  });
 }
 
-export async function signUpLocum(_: ActionState, formData: FormData) {
-  return signUp(formData, "locum");
+export async function signUpLocum(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = locumSignUpSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return invalid(parsed.error);
+  const d = parsed.data;
+
+  return createAccount("locum", d.email, d.password, {
+    first_name: d.firstName,
+    last_name: d.lastName,
+    phone: d.phone || null,
+  });
 }
 
 // ---------------------------------------------------------------------

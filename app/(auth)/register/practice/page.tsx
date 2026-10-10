@@ -20,7 +20,7 @@ export default function RegisterPracticePage() {
         </>
       }
     >
-      <RegisterForm action={signUpPractice} cta="Create practice account" />
+      <RegisterForm action={signUpPractice} cta="Create practice account" variant="practice" />
     </AuthCard>
   );
 }

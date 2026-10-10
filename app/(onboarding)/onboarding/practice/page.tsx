@@ -1,40 +1,41 @@
-"use client";
-
-import { useActionState } from "react";
-import { completePracticeOnboarding, type ActionState } from "@/features/auth/actions";
+import { createClient } from "@/lib/supabase/server";
 import { AuthCard } from "@/components/layout/auth-card";
-import { Field, SubmitButton, Banner } from "@/components/ui/form";
+import {
+  PracticeOnboardingForm,
+  type PracticeDefaults,
+} from "@/features/auth/components/practice-onboarding-form";
 
-export default function PracticeOnboardingPage() {
-  const [state, action] = useActionState<ActionState, FormData>(
-    completePracticeOnboarding,
-    {},
-  );
+/** The address given at registration, stashed in user metadata by signUpPractice. */
+function defaultsFrom(meta: Record<string, unknown> | undefined): PracticeDefaults {
+  const str = (key: string) => {
+    const v = meta?.[key];
+    return typeof v === "string" && v.trim() ? v : undefined;
+  };
+  return {
+    name: str("practice_name"),
+    addressLine1: str("address_line1"),
+    addressLine2: str("address_line2"),
+    city: str("city"),
+    postcode: str("postcode"),
+  };
+}
+
+export default async function PracticeOnboardingPage() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const defaults = defaultsFrom(data.user?.user_metadata);
+  const prefilled = Boolean(defaults.name || defaults.postcode);
 
   return (
     <AuthCard
       title="Tell us about the practice"
-      lede="We use the postcode to work out which locums are in range."
+      lede={
+        prefilled
+          ? "We've filled in what you gave us. Check it over and add the rest."
+          : "We use the postcode to work out which locums are in range."
+      }
     >
-      <form action={action} noValidate>
-        {state.error ? <Banner tone="error">{state.error}</Banner> : null}
-        <Field label="Practice name" name="name" required errors={state.fieldErrors?.name} />
-        <Field label="Trading name" name="tradingName" errors={state.fieldErrors?.tradingName}
-               hint="If it differs from the registered name." />
-        <Field label="Address" name="addressLine1" required
-               errors={state.fieldErrors?.addressLine1} />
-        <Field label="Address line 2" name="addressLine2"
-               errors={state.fieldErrors?.addressLine2} />
-        <Field label="Town or city" name="city" required errors={state.fieldErrors?.city} />
-        <Field label="Postcode" name="postcode" required
-               errors={state.fieldErrors?.postcode} placeholder="LS1 4DY" />
-        <Field label="Practice phone" name="phone" type="tel" errors={state.fieldErrors?.phone} />
-        <Field label="Billing email" name="billingEmail" type="email"
-               hint="Where Brighttemp invoices should go, if different."
-               errors={state.fieldErrors?.billingEmail} />
-        <Field label="VAT number" name="vatNumber" errors={state.fieldErrors?.vatNumber} />
-        <SubmitButton>Submit for approval</SubmitButton>
-      </form>
+      <PracticeOnboardingForm defaults={defaults} />
     </AuthCard>
   );
 }

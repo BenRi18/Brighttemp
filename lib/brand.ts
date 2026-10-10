@@ -15,5 +15,7 @@ export const BRAND = {
   platformLead: "Brighttemp",
   platformTail: "Booking Hub",
   legalName: "Brighttemp Ltd",
+  /** Companies House number. Required on the website, letterheads and invoices. */
+  companyNumber: "12463035",
   supportEmail: "hello@brighttempbookinghub.co.uk",
 } as const;

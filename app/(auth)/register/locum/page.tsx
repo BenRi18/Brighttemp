@@ -20,7 +20,7 @@ export default function RegisterLocumPage() {
         </>
       }
     >
-      <RegisterForm action={signUpLocum} cta="Create locum account" />
+      <RegisterForm action={signUpLocum} cta="Create locum account" variant="locum" />
     </AuthCard>
   );
 }

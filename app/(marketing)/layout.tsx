@@ -71,7 +71,8 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
         <p className="mx-auto mt-12 max-w-6xl border-t border-white/10 pt-6 text-sm">
-          © {new Date().getFullYear()} {BRAND.legalName}. Registered in England &amp; Wales.
+          © {new Date().getFullYear()} {BRAND.legalName}. Registered in England &amp; Wales,
+          company number {BRAND.companyNumber}.
         </p>
       </footer>
     </div>

@@ -26,7 +26,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl">
           <p className="mb-4 max-w-[34ch] text-muted">Locum cover for dental practices across the UK.</p>
           <h1 className="max-w-[15ch] text-[clamp(38px,7.4vw,72px)] font-extrabold leading-[1.02] tracking-tight">
-            Find cover for Thursday <span className="block">before lunch today.</span>
+            Reliable dental cover, <span className="block">just a booking away.</span>
           </h1>
           <p className="mt-6 max-w-[52ch] text-lg text-muted">
             Search dental nurses, hygienists, orthodontic therapists and receptionists by date,
@@ -46,7 +46,7 @@ export default function HomePage() {
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             <div className="flex flex-col rounded-2xl border border-line bg-white p-8">
               <h3 className="text-2xl font-extrabold tracking-tight">I am a dental practice</h3>
-              <p className="mt-2 text-muted">Cover a sickness, a holiday or a permanent gap — without ringing round five agencies.</p>
+              <p className="mt-2 text-muted">Cover a sickness, a holiday or a permanent gap — without ringing several agencies.</p>
               <ul className="my-6 space-y-2 text-[15px]">
                 {["Search by role, date, postcode and availability",
                   "See each locum's hourly rate before you book",
@@ -111,10 +111,10 @@ export default function HomePage() {
       <section id="compliance" className="px-6 py-20">
         <div className="mx-auto max-w-6xl">
           <h2 className="max-w-[40ch] text-[clamp(30px,4.6vw,44px)] font-extrabold tracking-tight">
-            Nobody reaches your search results uncleared.
+            Only fully compliant locums reach your search results.
           </h2>
           <p className="mt-3 max-w-[52ch] text-lg text-muted">
-            We hold and monitor seven documents for every locum, each checked by our team and tracked to its expiry date.
+            We hold and monitor compliance documents for every locum, each checked by our team and tracked to its expiry date.
           </p>
 
           <div className="mt-8 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -135,7 +135,7 @@ export default function HomePage() {
 
       <section className="px-6 pb-20">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-[clamp(30px,4.6vw,44px)] font-extrabold tracking-tight">From gap to confirmed shift.</h2>
+          <h2 className="text-[clamp(30px,4.6vw,44px)] font-extrabold tracking-tight">From your uncovered shift to confirmed cover.</h2>
           <ol className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
             {STEPS.map(([title, body], i) => (
               <li key={title} className="border-t-2 border-pine pt-4">
@@ -150,7 +150,7 @@ export default function HomePage() {
 
       <section className="bg-amber px-6 py-20 text-center">
         <h2 className="mx-auto max-w-[18ch] text-[clamp(32px,5.4vw,52px)] font-extrabold tracking-tight">
-          Your next gap is already someone&apos;s free Thursday.
+          Fill your uncovered shift with reliable locum cover.
         </h2>
         <p className="mx-auto mt-5 max-w-[46ch] text-lg text-[#54451A]">
           Free to register, either side. You&apos;ll be booking within a day of approval.
