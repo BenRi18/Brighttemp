@@ -44,7 +44,19 @@ function usableInProduction(hostHeader: string) {
 }
 
 function normalise(url: string) {
-  return url.trim().replace(/\/+$/, "");
+  const trimmed = url.trim().replace(/\/+$/, "");
+  try {
+    const u = new URL(trimmed);
+    // The scheme and host are case-insensitive; the path is not. Hosting panels
+    // have a habit of upper-casing whatever you paste, and the signup logs show
+    // links going out as HTTPS://BRIGHTTEMPBOOKINGHUB.CO.UK — which is the same
+    // address to a browser, but not a match for an allow-list entry written in
+    // lower case.
+    const path = u.pathname === "/" ? "" : u.pathname.replace(/\/+$/, "");
+    return `${u.protocol.toLowerCase()}//${u.host.toLowerCase()}${path}`;
+  } catch {
+    return trimmed;
+  }
 }
 
 /**

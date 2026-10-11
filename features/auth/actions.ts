@@ -23,10 +23,28 @@ export type ActionState = {
   error?: string;
   fieldErrors?: Record<string, string[]>;
   message?: string;
+  /** What was typed, so a rejected form can put it back. Never passwords. */
+  values?: Record<string, string>;
+  /** Set on a successful signup, so the success banner can offer a resend. */
+  pendingEmail?: string;
 };
 
-function invalid(e: z.ZodError): ActionState {
-  return { fieldErrors: e.flatten().fieldErrors as Record<string, string[]> };
+const SECRET_FIELDS = new Set(["password", "confirmPassword"]);
+
+/** Everything the user typed except the passwords, which are never echoed back. */
+function keep(formData: FormData): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of formData.entries()) {
+    if (typeof v === "string" && !SECRET_FIELDS.has(k)) out[k] = v;
+  }
+  return out;
+}
+
+function invalid(e: z.ZodError, formData?: FormData): ActionState {
+  return {
+    fieldErrors: e.flatten().fieldErrors as Record<string, string[]>,
+    ...(formData ? { values: keep(formData) } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------
@@ -35,7 +53,7 @@ function invalid(e: z.ZodError): ActionState {
 
 export async function signIn(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return invalid(parsed.error);
+  if (!parsed.success) return invalid(parsed.error, formData);
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -71,6 +89,7 @@ async function createAccount(
   email: string,
   password: string,
   metadata: Record<string, string | null>,
+  typed: Record<string, string>,
 ): Promise<ActionState> {
   // Refuses to build a link from an internal address, so a misconfigured host
   // can't email people a URL that won't open.
@@ -79,7 +98,10 @@ async function createAccount(
     origin = await siteUrl();
   } catch (e) {
     console.error("[signUp]", e instanceof Error ? e.message : e);
-    return { error: "We can't send confirmation emails right now. Please contact support." };
+    return {
+      error: "We can't send confirmation emails right now. Please contact support.",
+      values: typed,
+    };
   }
 
   const supabase = await createClient();
@@ -99,19 +121,42 @@ async function createAccount(
       code: error.code,
       status: error.status,
       message: error.message,
+      ...(error.message?.toLowerCase().includes("sending")
+        ? {
+            check:
+              "Supabase could not send the email. Dashboard → Logs → Auth Logs " +
+              "carries the underlying SMTP error. Without custom SMTP the built-in " +
+              "sender allows 2 emails an hour and only delivers to members of your " +
+              "Supabase organisation.",
+          }
+        : {}),
     });
-    return { error: signUpErrorMessage(error.code, error.message) };
+    return { error: signUpErrorMessage(error.code, error.message), values: typed };
   }
 
   return {
+    pendingEmail: email,
     message:
-      "Check your email and open the confirmation link to finish setting up your account.",
+      `Check ${email} for a confirmation link — including the spam folder, where it ` +
+      "often lands. If that address already has an account, no new email is sent: " +
+      "sign in instead, or reset the password.",
   };
 }
 
 /** Supabase auth error codes → something a practice manager can act on. */
 function signUpErrorMessage(code: string | undefined, message: string): string {
   const m = message.toLowerCase();
+
+  // Supabase returns a bare 500 "Error sending confirmation email" both when
+  // SMTP is misconfigured and when the built-in sender's cap (2 an hour) is
+  // used up. The account is not created either way, so saying "try again"
+  // is the truthful advice — and the server log says where to look.
+  if (m.includes("sending confirmation email") || m.includes("error sending")) {
+    return (
+      "We couldn't send your confirmation email, so the account wasn't created. " +
+      "Please try again in a few minutes."
+    );
+  }
   switch (code) {
     case "user_already_exists":
     case "email_exists":
@@ -144,7 +189,7 @@ export async function signUpPractice(
   formData: FormData,
 ): Promise<ActionState> {
   const parsed = practiceSignUpSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return invalid(parsed.error);
+  if (!parsed.success) return invalid(parsed.error, formData);
   const d = parsed.data;
 
   return createAccount("practice", d.email, d.password, {
@@ -159,7 +204,10 @@ export async function signUpPractice(
     address_line2: d.addressLine2 || null,
     city: d.city,
     postcode: d.postcode,
-  });
+    // Kept for projects where migration 0010 has not been applied yet: the old
+    // trigger reads full_name and knows nothing about the two parts.
+    full_name: d.practiceName,
+  }, keep(formData));
 }
 
 export async function signUpLocum(
@@ -167,14 +215,59 @@ export async function signUpLocum(
   formData: FormData,
 ): Promise<ActionState> {
   const parsed = locumSignUpSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return invalid(parsed.error);
+  if (!parsed.success) return invalid(parsed.error, formData);
   const d = parsed.data;
 
   return createAccount("locum", d.email, d.password, {
     first_name: d.firstName,
     last_name: d.lastName,
     phone: d.phone || null,
+    // Same reason: harmless once 0010 is applied, essential before it.
+    full_name: `${d.firstName} ${d.lastName}`,
+  }, keep(formData));
+}
+
+/**
+ * Send the confirmation again. Supabase only does this for an address that
+ * exists and is still unconfirmed; for anything else it quietly does nothing,
+ * so this cannot be used to find out who has an account.
+ */
+export async function resendConfirmation(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!email) return { error: "No address to send to." };
+
+  let origin: string;
+  try {
+    origin = await siteUrl();
+  } catch (e) {
+    console.error("[resendConfirmation]", e instanceof Error ? e.message : e);
+    return { error: "We can't send emails right now. Please contact support." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: `${origin}/auth/callback` },
   });
+
+  if (error) {
+    console.error("[resendConfirmation]", { code: error.code, message: error.message });
+    if (error.code === "over_email_send_rate_limit") {
+      return {
+        pendingEmail: email,
+        error:
+          "That's as many emails as we can send to you for the moment. Wait a few " +
+          "minutes, and check your spam folder in the meantime.",
+      };
+    }
+    return { pendingEmail: email, error: "We couldn't send it again just now. Try shortly." };
+  }
+
+  return { pendingEmail: email, message: `Sent again to ${email}. It can take a minute to arrive.` };
 }
 
 // ---------------------------------------------------------------------
@@ -186,7 +279,7 @@ export async function requestPasswordReset(
   formData: FormData,
 ): Promise<ActionState> {
   const parsed = forgotPasswordSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return invalid(parsed.error);
+  if (!parsed.success) return invalid(parsed.error, formData);
 
   try {
     const supabase = await createClient();
@@ -210,7 +303,7 @@ export async function updatePassword(
   formData: FormData,
 ): Promise<ActionState> {
   const parsed = updatePasswordSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return invalid(parsed.error);
+  if (!parsed.success) return invalid(parsed.error, formData);
 
   const supabase = await createClient();
   const {
@@ -254,7 +347,7 @@ export async function completePracticeOnboarding(
   formData: FormData,
 ): Promise<ActionState> {
   const parsed = practiceOnboardingSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return invalid(parsed.error);
+  if (!parsed.success) return invalid(parsed.error, formData);
 
   const supabase = await createClient();
   const d = parsed.data;
@@ -293,7 +386,7 @@ export async function completeLocumOnboarding(
   formData: FormData,
 ): Promise<ActionState> {
   const parsed = locumOnboardingSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return invalid(parsed.error);
+  if (!parsed.success) return invalid(parsed.error, formData);
 
   const supabase = await createClient();
   const {
