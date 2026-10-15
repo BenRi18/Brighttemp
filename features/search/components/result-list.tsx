@@ -50,7 +50,8 @@ export function ResultList({
             key={r.locum_id}
             className="flex flex-wrap items-center gap-4 rounded-xl border border-line bg-white p-4"
           >
-            <div className="min-w-0 flex-1">
+            {/* Stacked on phones; name, price and button in one row from sm up. */}
+            <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
               <p className="font-semibold">
                 {r.full_name}
                 {favouriteSet.has(r.locum_id) ? (
@@ -63,7 +64,7 @@ export function ResultList({
               </p>
             </div>
 
-            <div className="text-right text-sm text-muted">
+            <div className="flex-1 text-sm text-muted sm:flex-none sm:text-right">
               <p className="text-lg font-bold text-[#12211F]">{hourly(r.hourly_rate)}</p>
               <p>
                 {money(r.locum_total)} to the locum + {money(r.booking_fee)} fee

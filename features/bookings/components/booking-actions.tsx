@@ -22,6 +22,7 @@ export function BookingActions({
   bookingId: string;
   status: BookingStatus;
   viewer: "practice" | "locum" | "admin";
+  /** Hours until the shift starts; negative once it has begun. */
   noticeHours: number;
   cancellationFee: number;
 }) {
@@ -55,7 +56,8 @@ export function BookingActions({
           </form>
         )}
 
-        {viewer === "practice" && status === "confirmed" && (
+        {/* Only once the shift has started — you can't confirm attendance in advance. */}
+        {viewer === "practice" && status === "confirmed" && noticeHours <= 0 && (
           <form action={complete}>
             <input type="hidden" name="bookingId" value={bookingId} />
             <button className="rounded-full bg-pine px-5 py-2.5 font-semibold text-white">

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { completeLocumOnboarding, type ActionState } from "@/features/auth/actions";
 import { Field, SubmitButton, Banner } from "@/components/ui/form";
+import { useFormDraft } from "./use-form-draft";
 
 type Role = { id: string; name: string; slug: string };
 
@@ -11,9 +12,11 @@ export function LocumOnboardingForm({ roles }: { roles: Role[] }) {
     completeLocumOnboarding,
     {},
   );
+  const draft = useFormDraft("onboarding-locum", state.values);
+  const v = state.values;
 
   return (
-    <form action={action} noValidate>
+    <form action={action} ref={draft.ref} onChange={draft.save} noValidate>
       {state.error ? <Banner tone="error">{state.error}</Banner> : null}
 
       <div className="mb-4">
@@ -24,7 +27,7 @@ export function LocumOnboardingForm({ roles }: { roles: Role[] }) {
           id="roleId"
           name="roleId"
           required
-          defaultValue=""
+          defaultValue={v?.roleId ?? ""}
           className="w-full rounded-lg border border-[#D5DFD8] bg-white px-3 py-2.5 text-[#12211F] outline-none focus-visible:ring-2 focus-visible:ring-[#FFC93D]"
         >
           <option value="" disabled>

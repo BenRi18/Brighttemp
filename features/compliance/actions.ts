@@ -135,9 +135,11 @@ export async function reviewDocument(_: ActionState, formData: FormData): Promis
   if (error) {
     console.error("[reviewDocument] failed:", error.message);
     return {
-      error: /not authorised|permission denied/i.test(error.message)
-        ? "Your account doesn't have permission to review documents."
-        : "We couldn't record that decision. Try again.",
+      error: /could not find the function|does not exist|schema cache/i.test(error.message)
+        ? "The database is missing an update — run migration 0009_admin_review_functions.sql in Supabase."
+        : /not authorised|permission denied/i.test(error.message)
+          ? "Your account doesn't have permission to review documents."
+          : "We couldn't record that decision. Try again.",
     };
   }
 

@@ -114,7 +114,10 @@ export async function reviewRateChange(_: ActionState, formData: FormData): Prom
         review_note: parsed.data.note || null,
       })
       .eq("id", parsed.data.rateId);
-    if (error) return { error: "We couldn't record that decision." };
+    if (error) {
+      console.error("[reviewRateChange] failed:", error.message);
+      return { error: adminErrorMessage(error.message) };
+    }
     revalidatePath("/admin/approvals");
     return { message: "Rate change rejected." };
   }
@@ -259,6 +262,10 @@ export async function setTrustLevel(_: ActionState, formData: FormData): Promise
 
 /** Database errors, in words an admin can act on. */
 function adminErrorMessage(message: string): string {
+  // PostgREST says this when the function isn't in the database yet.
+  if (/could not find the function|does not exist|schema cache/i.test(message)) {
+    return "The database is missing an update — run migration 0009_admin_review_functions.sql in Supabase.";
+  }
   if (/not authorised|permission denied/i.test(message)) {
     return "Your account doesn't have permission for that. Sign out and back in, then try again.";
   }

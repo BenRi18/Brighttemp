@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { completePracticeOnboarding, type ActionState } from "@/features/auth/actions";
 import { Field, SubmitButton, Banner } from "@/components/ui/form";
+import { useFormDraft } from "./use-form-draft";
 
 export type PracticeDefaults = {
   name?: string;
@@ -22,28 +23,30 @@ export function PracticeOnboardingForm({ defaults }: { defaults: PracticeDefault
     completePracticeOnboarding,
     {},
   );
+  const draft = useFormDraft("onboarding-practice", state.values);
   const e = state.fieldErrors;
+  const v = state.values;
 
   return (
-    <form action={action} noValidate>
+    <form action={action} ref={draft.ref} onChange={draft.save} noValidate>
       {state.error ? <Banner tone="error">{state.error}</Banner> : null}
-      <Field label="Practice name" name="name" required defaultValue={defaults.name}
+      <Field label="Practice name" name="name" required defaultValue={v?.name ?? defaults.name}
              errors={e?.name} />
-      <Field label="Trading name" name="tradingName" errors={e?.tradingName}
+      <Field label="Trading name" name="tradingName" defaultValue={v?.tradingName} errors={e?.tradingName}
              hint="If it differs from the registered name." />
-      <Field label="Address" name="addressLine1" required defaultValue={defaults.addressLine1}
+      <Field label="Address" name="addressLine1" required defaultValue={v?.addressLine1 ?? defaults.addressLine1}
              autoComplete="address-line1" errors={e?.addressLine1} />
-      <Field label="Address line 2" name="addressLine2" defaultValue={defaults.addressLine2}
+      <Field label="Address line 2" name="addressLine2" defaultValue={v?.addressLine2 ?? defaults.addressLine2}
              autoComplete="address-line2" errors={e?.addressLine2} />
-      <Field label="Town or city" name="city" required defaultValue={defaults.city}
+      <Field label="Town or city" name="city" required defaultValue={v?.city ?? defaults.city}
              autoComplete="address-level2" errors={e?.city} />
-      <Field label="Postcode" name="postcode" required defaultValue={defaults.postcode}
+      <Field label="Postcode" name="postcode" required defaultValue={v?.postcode ?? defaults.postcode}
              autoComplete="postal-code" placeholder="LS1 4DY" errors={e?.postcode} />
-      <Field label="Practice phone" name="phone" type="tel" errors={e?.phone} />
-      <Field label="Billing email" name="billingEmail" type="email"
+      <Field label="Practice phone" name="phone" type="tel" defaultValue={v?.phone} errors={e?.phone} />
+      <Field label="Billing email" name="billingEmail" type="email" defaultValue={v?.billingEmail}
              hint="Where Brighttemp invoices should go, if different."
              errors={e?.billingEmail} />
-      <Field label="VAT number" name="vatNumber" errors={e?.vatNumber} />
+      <Field label="VAT number" name="vatNumber" defaultValue={v?.vatNumber} errors={e?.vatNumber} />
       <SubmitButton>Submit for approval</SubmitButton>
     </form>
   );
