@@ -17,5 +17,8 @@ export const BRAND = {
   legalName: "Brighttemp Ltd",
   /** Companies House number. Required on the website, letterheads and invoices. */
   companyNumber: "12463035",
-  supportEmail: "hello@brighttempbookinghub.co.uk",
+  supportEmail: "brighttemp@yahoo.com",
+  supportPhone: "07960867701",
+  /** Same number, in the form a phone dialler understands. */
+  supportPhoneLink: "+447960867701",
 } as const;

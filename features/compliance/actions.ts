@@ -32,6 +32,26 @@ export async function uploadDocument(_: ActionState, formData: FormData): Promis
   const supabase = await createClient();
   const d = parsed.data;
 
+  // Does this document expire? The browser hides the field when it doesn't,
+  // but that is a convenience, not a rule — the rule is enforced here.
+  const { data: requirement } = await supabase
+    .from("compliance_requirements")
+    .select("requires_expiry")
+    .eq("role_id", account.locum.role_id)
+    .eq("doc_type", d.docType)
+    .maybeSingle();
+
+  const requiresExpiry = requirement?.requires_expiry ?? false;
+
+  if (requiresExpiry && !d.expiryDate) {
+    return { fieldErrors: { expiryDate: ["Enter the expiry date shown on the document"] } };
+  }
+
+  // A document with no expiry stores none, whatever was posted. Otherwise a
+  // stray date would later mark a Hep B record "expired" and quietly drop the
+  // locum out of search results.
+  const expiryDate = requiresExpiry ? d.expiryDate || null : null;
+
   // Path must start with the locum id — the storage policy keys off it.
   const safeName = file!.name.replace(/[^\w.-]/g, "_").slice(-80);
   const path = `${account.locum.id}/${d.docType}/${Date.now()}-${safeName}`;
@@ -68,7 +88,7 @@ export async function uploadDocument(_: ActionState, formData: FormData): Promis
     mime_type: file!.type,
     size_bytes: file!.size,
     issue_date: d.issueDate || null,
-    expiry_date: d.expiryDate || null,
+    expiry_date: expiryDate,
     reference: d.reference || null,
   });
 

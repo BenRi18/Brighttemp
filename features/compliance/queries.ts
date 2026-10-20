@@ -7,6 +7,8 @@ export type ChecklistRow = {
   docType: Enums<"compliance_doc_type">;
   label: string;
   mandatory: boolean;
+  /** Some documents genuinely never expire — a Hep B vaccination, for one. */
+  requiresExpiry: boolean;
   document: ComplianceDocument | null;
 };
 
@@ -21,7 +23,7 @@ export async function complianceChecklist(locumId: string, roleId: string): Prom
   const [{ data: requirements }, { data: documents }] = await Promise.all([
     supabase
       .from("compliance_requirements")
-      .select("doc_type, is_mandatory")
+      .select("doc_type, is_mandatory, requires_expiry")
       .eq("role_id", roleId),
     supabase
       .from("compliance_documents")
@@ -37,6 +39,7 @@ export async function complianceChecklist(locumId: string, roleId: string): Prom
       docType: r.doc_type,
       label: DOC_LABELS[r.doc_type],
       mandatory: r.is_mandatory,
+      requiresExpiry: r.requires_expiry,
       document: byType.get(r.doc_type) ?? null,
     }))
     .sort((a, b) => DOC_TYPES.indexOf(a.docType) - DOC_TYPES.indexOf(b.docType));

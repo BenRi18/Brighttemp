@@ -47,7 +47,8 @@ export default async function CompliancePage() {
               </p>
             ) : null}
 
-            <UploadForm docType={row.docType} label={row.label} hasExisting={!!row.document} />
+            <UploadForm docType={row.docType} label={row.label} hasExisting={!!row.document}
+                        requiresExpiry={row.requiresExpiry} />
           </div>
         ))}
       </div>

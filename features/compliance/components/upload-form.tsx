@@ -9,10 +9,18 @@ export function UploadForm({
   docType,
   label,
   hasExisting,
+  requiresExpiry,
 }: {
   docType: string;
   label: string;
   hasExisting: boolean;
+  /**
+   * Whether this document expires at all. A Hepatitis B vaccination record
+   * doesn't, and asking for a date that doesn't exist leaves the locum either
+   * stuck or inventing one. Comes from compliance_requirements, so an admin
+   * changing the rule changes the form.
+   */
+  requiresExpiry: boolean;
 }) {
   const [state, action] = useActionState<ActionState, FormData>(uploadDocument, {});
   const [open, setOpen] = useState(!hasExisting);
@@ -59,12 +67,17 @@ export function UploadForm({
           </label>
           <input id={`issue-${docType}`} name="issueDate" type="date" className={field} />
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-muted" htmlFor={`expiry-${docType}`}>
-            Expires
-          </label>
-          <input id={`expiry-${docType}`} name="expiryDate" type="date" className={field} />
-        </div>
+        {requiresExpiry ? (
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-muted" htmlFor={`expiry-${docType}`}>
+              Expires
+            </label>
+            <input id={`expiry-${docType}`} name="expiryDate" type="date" required className={field} />
+            {state.fieldErrors?.expiryDate ? (
+              <p className="mt-1 text-sm text-red-600">{state.fieldErrors.expiryDate[0]}</p>
+            ) : null}
+          </div>
+        ) : null}
         <div>
           <label className="mb-1 block text-sm font-semibold text-muted" htmlFor={`ref-${docType}`}>
             Reference

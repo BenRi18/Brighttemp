@@ -66,7 +66,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
             <h2 className="mb-3 text-sm font-bold text-white">Contact</h2>
             <ul className="space-y-1.5 text-sm">
               <li><a href={`mailto:${BRAND.supportEmail}`}>{BRAND.supportEmail}</a></li>
-              <li>Mon–Fri, 8am–6pm</li>
+              <li><a href={`tel:${BRAND.supportPhoneLink}`}>{BRAND.supportPhone}</a></li>
             </ul>
           </div>
         </div>
