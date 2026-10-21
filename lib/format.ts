@@ -14,6 +14,18 @@ export function shiftDate(iso: string) {
   });
 }
 
+/**
+ * A timestamptz, as a date. shiftDate is for plain YYYY-MM-DD columns — it
+ * appends a time, so handing it a full ISO timestamp produces "Invalid Date".
+ */
+export function stampDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? "—"
+    : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
 export function shiftTimes(start: string, finish: string) {
   return `${start.slice(0, 5)}–${finish.slice(0, 5)}`;
 }
