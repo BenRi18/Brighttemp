@@ -73,32 +73,50 @@ export async function uploadDocument(_: ActionState, formData: FormData): Promis
     return { error: storageErrorMessage(uploadError.message) };
   }
 
-  await supabase
-    .from("compliance_documents")
-    .update({ is_current: false })
-    .eq("locum_id", account.locum.id)
-    .eq("doc_type", d.docType)
-    .eq("is_current", true);
-
-  const { error } = await supabase.from("compliance_documents").insert({
-    locum_id: account.locum.id,
-    doc_type: d.docType,
-    storage_path: path,
-    original_filename: file!.name,
-    mime_type: file!.type,
-    size_bytes: file!.size,
-    issue_date: d.issueDate || null,
-    expiry_date: expiryDate,
-    reference: d.reference || null,
+  // Archiving the old document and inserting the new one happen together, in
+  // the database. Doing it as two statements from here meant the archive could
+  // be refused — is_current is not a column a locum may write — and the insert
+  // then collided with the one-current-document-per-type index.
+  const { error } = await supabase.rpc("replace_compliance_document", {
+    p_doc_type: d.docType,
+    p_storage_path: path,
+    p_original_filename: file!.name,
+    p_mime_type: file!.type,
+    p_size_bytes: file!.size,
+    p_issue_date: d.issueDate || null,
+    p_expiry_date: expiryDate,
+    p_reference: d.reference || null,
   });
 
   if (error) {
+    // This used to fail silently, which is why a re-upload looked like a
+    // mystery. The detail goes to the server log.
+    console.error("[uploadDocument] could not record the document:", {
+      docType: d.docType,
+      path,
+      code: error.code,
+      message: error.message,
+    });
     await supabase.storage.from("compliance").remove([path]);
-    return { error: "We couldn't save that document. Try again." };
+    return { error: saveErrorMessage(error.message) };
   }
 
   revalidatePath("/locum/compliance");
   return { message: "Uploaded. Brighttemp will review it shortly." };
+}
+
+/** Failures recording the document, in words a locum can act on. */
+function saveErrorMessage(message: string): string {
+  if (/could not find the function|does not exist|schema cache/i.test(message)) {
+    return "This site is missing a database update — please let Brighttemp know.";
+  }
+  if (/duplicate key|compliance_documents_current_idx/i.test(message)) {
+    return "That document was already replaced. Refresh the page to see the latest one.";
+  }
+  if (/permission denied|not authorised|only a locum/i.test(message)) {
+    return "Your account can't upload documents. Sign out and back in, then try again.";
+  }
+  return "We couldn't save that document. Try again.";
 }
 
 /** Storage failures, in words a locum or an admin can act on. */

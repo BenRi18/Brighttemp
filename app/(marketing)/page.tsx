@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { HeroSearch } from "@/features/search/components/hero-search";
+import { createPublicClient } from "@/lib/supabase/public";
+import { supabaseConfigured } from "@/lib/env";
+import { money } from "@/lib/format";
 
 const DOCS = [
   ["GDC registration", "Number verified, renewal date tracked"],
@@ -19,7 +22,41 @@ const STEPS = [
   ["Shift worked", "You pay the locum their rate. The booking closes."],
 ];
 
-export default function HomePage() {
+/**
+ * The headline fee was hard-coded, and had already drifted: it read £30 while
+ * the cheapest published fee was £20. Reading the real minimum means the page
+ * can't quote a figure the fee table doesn't offer.
+ *
+ * A marketing page must never 500 because the database is unreachable, so a
+ * failure falls back to the lowest fee at the time of writing.
+ */
+const LOWEST_FEE_FALLBACK = 30;
+
+async function lowestBookingFee(): Promise<number> {
+  if (!supabaseConfigured()) return LOWEST_FEE_FALLBACK;
+  try {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("fees")
+      .select("amount")
+      .eq("fee_type", "booking")
+      .is("effective_to", null)
+      .order("amount", { ascending: true })
+      .limit(1);
+    if (error) throw error;
+    return data?.[0]?.amount ?? LOWEST_FEE_FALLBACK;
+  } catch (error) {
+    console.error("[home] Could not read the lowest booking fee:", error);
+    return LOWEST_FEE_FALLBACK;
+  }
+}
+
+// Matches /pricing: a fee change shows here within five minutes.
+export const revalidate = 300;
+
+export default async function HomePage() {
+  const fee = await lowestBookingFee();
+
   return (
     <>
       <section className="px-6 pb-10 pt-16">
@@ -93,13 +130,19 @@ export default function HomePage() {
             <div className="rounded-2xl border border-white/20 bg-white/5 p-7">
               <p className="text-sm font-bold text-amber">Practice → Locum</p>
               <h3 className="mt-3 text-2xl font-extrabold tracking-tight">The locum&apos;s rate</h3>
-              <p className="my-3 text-4xl font-extrabold tracking-tight">£18.00/hr</p>
+              <p className="my-3 text-4xl font-extrabold tracking-tight">
+                <span className="mr-2 text-xl font-bold text-[#B7D2CC]">from</span>
+                £18.00/hr
+              </p>
               <p className="text-[#B7D2CC]">Set by the locum, visible before booking, paid direct. Brighttemp takes nothing from it.</p>
             </div>
             <div className="rounded-2xl border border-amber bg-amber/10 p-7">
               <p className="text-sm font-bold text-amber">Practice → Brighttemp</p>
               <h3 className="mt-3 text-2xl font-extrabold tracking-tight">Our booking fee</h3>
-              <p className="my-3 text-4xl font-extrabold tracking-tight">£30.00 flat</p>
+              <p className="my-3 text-4xl font-extrabold tracking-tight">
+                <span className="mr-2 text-xl font-bold text-[#B7D2CC]">from</span>
+                {money(fee)} flat
+              </p>
               <p className="text-[#B7D2CC]">
                 One fee per booking — not per hour, not a percentage, and no VAT on top.
               </p>

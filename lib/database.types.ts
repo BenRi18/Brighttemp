@@ -1243,6 +1243,19 @@ export type Database = {
       };
     };
     Functions: {
+      replace_compliance_document: {
+        Args: {
+          p_doc_type: Database["public"]["Enums"]["compliance_doc_type"];
+          p_storage_path: string;
+          p_original_filename?: string | null;
+          p_mime_type?: string | null;
+          p_size_bytes?: number | null;
+          p_issue_date?: string | null;
+          p_expiry_date?: string | null;
+          p_reference?: string | null;
+        };
+        Returns: string;
+      };
       admin_review_locum: {
         Args: { p_locum_id: string; p_approve: boolean; p_reason?: string | null };
         Returns: { locum_id: string; is_bookable: boolean; profile_id: string; email: string }[];
