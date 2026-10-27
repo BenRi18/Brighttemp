@@ -773,6 +773,10 @@ export type Database = {
           approved_by: string | null;
           suspended_at: string | null;
           suspension_reason: string | null;
+          /** Set when an admin takes them off the books. Written only by the archive functions. */
+          archived_at: string | null;
+          archived_by: string | null;
+          archive_reason: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -795,6 +799,9 @@ export type Database = {
           approved_by?: string | null;
           suspended_at?: string | null;
           suspension_reason?: string | null;
+          archived_at?: string | null;
+          archived_by?: string | null;
+          archive_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -817,6 +824,9 @@ export type Database = {
           approved_by?: string | null;
           suspended_at?: string | null;
           suspension_reason?: string | null;
+          archived_at?: string | null;
+          archived_by?: string | null;
+          archive_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1291,6 +1301,36 @@ export type Database = {
       day_type_for: { Args: { p_date: string }; Returns: Database["public"]["Enums"]["day_type"] };
       refresh_compliance_statuses: { Args: Record<string, never>; Returns: number };
       locum_compliance_ok: { Args: { p_locum_id: string }; Returns: boolean };
+      locum_delete_check: {
+        Args: { p_locum_id: string };
+        Returns: {
+          locum_id: string;
+          profile_id: string;
+          email: string;
+          full_name: string;
+          archived_at: string | null;
+          bookings_total: number;
+          bookings_upcoming: number;
+          documents: number;
+          can_delete: boolean;
+        }[];
+      };
+      admin_archive_locum: {
+        Args: { p_locum_id: string; p_reason?: string | null };
+        Returns: { locum_id: string; profile_id: string; email: string; full_name: string }[];
+      };
+      admin_unarchive_locum: {
+        Args: { p_locum_id: string };
+        Returns: { locum_id: string; is_bookable: boolean }[];
+      };
+      admin_locum_activity: {
+        Args: Record<string, never>;
+        Returns: {
+          locum_id: string;
+          last_sign_in_at: string | null;
+          bookings_total: number;
+        }[];
+      };
     };
     CompositeTypes: {
       [_ in never]: never;

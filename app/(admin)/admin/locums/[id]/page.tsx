@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { locumRecord, locumBookings, listRates } from "@/features/locums/queries";
+import {
+  locumRecord,
+  locumBookings,
+  listRates,
+  locumRemovalCheck,
+} from "@/features/locums/queries";
 import { complianceChecklist } from "@/features/compliance/queries";
 import { ApprovalRow } from "@/features/admin/components/approval-row";
+import { LocumRemoval } from "@/features/admin/components/locum-removal";
 import { PageHeading } from "@/components/layout/portal-shell";
 import { AccountBadge, Badge, BookingBadge, DocumentBadge } from "@/components/ui/badge";
 import { hourly, shiftDate, shiftTimes, stampDate } from "@/lib/format";
@@ -22,10 +28,11 @@ export default async function LocumRecordPage({
   // A finance admin can't read compliance documents — the RLS policy limits
   // them to super_admin, operations and compliance. An empty checklist here
   // means "not your remit", not "nothing uploaded", so it is labelled as such.
-  const [checklist, rates, bookings] = await Promise.all([
+  const [checklist, rates, bookings, removal] = await Promise.all([
     complianceChecklist(locum.id, locum.role_id),
     listRates(locum.id),
     locumBookings(locum.id),
+    locumRemovalCheck(locum.id),
   ]);
 
   const name = locum.profiles?.full_name ?? "Unnamed";
@@ -212,6 +219,16 @@ export default async function LocumRecordPage({
             </div>
           )}
         </div>
+      </div>
+
+      <div className="mt-8">
+        <LocumRemoval
+          locumId={locum.id}
+          name={name}
+          archivedAt={locum.archived_at ?? null}
+          archiveReason={locum.archive_reason ?? null}
+          check={removal}
+        />
       </div>
     </>
   );

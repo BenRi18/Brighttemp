@@ -29,3 +29,21 @@ export const trustSchema = z.object({
   practiceId: z.string().uuid(),
   trustLevel: z.enum(["new", "trusted"]),
 });
+
+export const archiveSchema = z.object({
+  locumId: z.string().uuid(),
+  reason: z.string().trim().max(300).optional().or(z.literal("")),
+});
+
+/**
+ * Deleting is not reversible, so the form has to say so out loud: the
+ * confirmation box is part of the payload, not just a disabled button in the
+ * browser. The action re-checks eligibility against the database afterwards
+ * regardless — this only stops an accidental submit.
+ */
+export const deleteLocumSchema = z.object({
+  locumId: z.string().uuid(),
+  confirm: z.literal("delete", {
+    errorMap: () => ({ message: "Tick the box to confirm" }),
+  }),
+});

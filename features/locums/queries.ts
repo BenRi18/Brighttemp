@@ -78,8 +78,32 @@ export type RosterRow = {
   yearsExperience: number;
   gdcNumber: string | null;
   createdAt: string;
+  /** Last time they signed in. Null means they never have. */
+  lastSeenAt: string | null;
+  /** Every booking ever, whatever its status — a cancellation counts. */
+  bookings: number;
+  archivedAt: string | null;
   compliance: ComplianceSummary;
 };
+
+/**
+ * How long without signing in before a locum counts as dormant. Ninety days
+ * is roughly a quarter: long enough that a working locum with a quiet spell
+ * isn't swept up, short enough to catch a registration that went nowhere.
+ */
+export const DORMANT_AFTER_DAYS = 90;
+
+/**
+ * Dormant means nothing is lost by removing them: no booking has ever been
+ * made, and they haven't signed in for a quarter — or have never signed in
+ * at all, which is the commonest case by far.
+ */
+export function isDormant(row: Pick<RosterRow, "bookings" | "lastSeenAt">): boolean {
+  if (row.bookings > 0) return false;
+  if (!row.lastSeenAt) return true;
+  const days = (Date.now() - new Date(row.lastSeenAt).getTime()) / 86_400_000;
+  return days >= DORMANT_AFTER_DAYS;
+}
 
 /** The four values account_status can take. */
 export const ACCOUNT_STATUSES = ["pending", "approved", "rejected", "suspended"] as const;
@@ -96,6 +120,10 @@ export type RosterFilters = {
   status?: string;
   /** "yes" or "no" — whether they currently appear in practice search. */
   bookable?: string;
+  /** "dormant" narrows to the ones safe to remove. */
+  activity?: string;
+  /** Archived locums are off the roster unless this is asked for. */
+  includeArchived?: boolean;
 };
 
 /** Hard ceiling so one page can never try to render the whole table. */
@@ -113,14 +141,20 @@ const ROSTER_LIMIT = 500;
 export async function listLocums(filters: RosterFilters = {}): Promise<{
   rows: RosterRow[];
   truncated: boolean;
+  /**
+   * False when sign-in history couldn't be read — the page then hides the
+   * column rather than showing "Never" for everybody.
+   */
+  activityKnown: boolean;
 }> {
   const supabase = await createClient();
 
   let query = supabase
     .from("locums")
     .select(`
-      id, status, is_bookable, base_postcode, years_experience, gdc_number, created_at, role_id,
-      profiles!locums_profile_id_fkey ( full_name, email, phone ),
+      id, status, is_bookable, base_postcode, years_experience, gdc_number, created_at,
+      role_id, archived_at,
+      profiles!locums_profile_id_fkey ( full_name, email, phone, last_seen_at ),
       roles ( name )
     `)
     .limit(ROSTER_LIMIT);
@@ -129,24 +163,45 @@ export async function listLocums(filters: RosterFilters = {}): Promise<{
   if (isAccountStatus(filters.status)) query = query.eq("status", filters.status);
   if (filters.bookable === "yes") query = query.eq("is_bookable", true);
   if (filters.bookable === "no") query = query.eq("is_bookable", false);
+  if (!filters.includeArchived) query = query.is("archived_at", null);
 
   const { data, error } = await query;
   if (error) {
     console.error("[listLocums] failed:", error.message);
-    return { rows: [], truncated: false };
+    return { rows: [], truncated: false, activityKnown: false };
   }
 
   const locums = data ?? [];
   const ids = locums.map((l) => l.id);
 
-  // One query for everyone's documents rather than one per locum.
-  const { data: documents } = ids.length
-    ? await supabase
-        .from("compliance_documents")
-        .select("locum_id, status")
-        .in("locum_id", ids)
-        .eq("is_current", true)
-    : { data: [] };
+  // One query for everyone's documents rather than one per locum, and one
+  // for sign-ins and booking counts — the latter through a function because
+  // the last sign-in lives in auth.users, which the app's role cannot read.
+  const [{ data: documents }, activity] = await Promise.all([
+    ids.length
+      ? supabase
+          .from("compliance_documents")
+          .select("locum_id, status")
+          .in("locum_id", ids)
+          .eq("is_current", true)
+      : Promise.resolve({ data: [] as { locum_id: string; status: string }[] }),
+    supabase.rpc("admin_locum_activity"),
+  ]);
+
+  // If the function isn't there yet, we know nothing about sign-ins — and
+  // saying "never signed in" when the truth is "we didn't ask" would mark
+  // the whole roster dormant. Report it as unknown instead.
+  const activityKnown = !activity.error;
+  if (activity.error) {
+    console.error("[listLocums] activity unavailable:", activity.error.message);
+  }
+
+  const signIns = new Map<string, string | null>();
+  const bookingCounts = new Map<string, number>();
+  for (const a of activity.data ?? []) {
+    signIns.set(a.locum_id, a.last_sign_in_at);
+    bookingCounts.set(a.locum_id, a.bookings_total ?? 0);
+  }
 
   const byLocum = new Map<string, ComplianceSummary>();
   for (const d of documents ?? []) {
@@ -179,6 +234,9 @@ export async function listLocums(filters: RosterFilters = {}): Promise<{
       yearsExperience: l.years_experience,
       gdcNumber: l.gdc_number,
       createdAt: l.created_at,
+      lastSeenAt: signIns.get(l.id) ?? null,
+      bookings: bookingCounts.get(l.id) ?? 0,
+      archivedAt: l.archived_at ?? null,
       compliance: byLocum.get(l.id) ?? {
         approved: 0,
         outstanding: 0,
@@ -193,9 +251,10 @@ export async function listLocums(filters: RosterFilters = {}): Promise<{
           (r.email?.toLowerCase().includes(needle) ?? false) ||
           (r.gdcNumber?.toLowerCase().includes(needle) ?? false),
     )
+    .filter((r) => (filters.activity === "dormant" && activityKnown ? isDormant(r) : true))
     .sort((a, b) => a.name.localeCompare(b.name, "en-GB"));
 
-  return { rows, truncated: locums.length === ROSTER_LIMIT };
+  return { rows, truncated: locums.length === ROSTER_LIMIT, activityKnown };
 }
 
 /** One locum's full record, for the admin detail page. */
@@ -206,8 +265,10 @@ export async function locumRecord(id: string) {
     .select(`
       id, status, is_bookable, base_postcode, travel_radius_miles, years_experience,
       gdc_number, gdc_expiry, bio, specialisms, created_at, approved_at, suspension_reason,
-      role_id,
-      profiles!locums_profile_id_fkey ( full_name, first_name, last_name, email, phone, whatsapp_opt_in ),
+      role_id, archived_at, archive_reason,
+      profiles!locums_profile_id_fkey (
+        full_name, first_name, last_name, email, phone, whatsapp_opt_in, last_seen_at
+      ),
       roles ( name )
     `)
     .eq("id", id)
@@ -215,6 +276,56 @@ export async function locumRecord(id: string) {
 
   if (error) console.error("[locumRecord] failed:", error.message);
   return data ?? null;
+}
+
+export type RemovalCheck = {
+  bookingsTotal: number;
+  bookingsUpcoming: number;
+  documents: number;
+  canDelete: boolean;
+  /** The database refused to answer — offer nothing rather than guess. */
+  unavailable?: string;
+};
+
+/**
+ * What can be done with this locum: deleted outright, or only archived.
+ * Answered by the database so the page and the action agree, and so the
+ * count includes bookings an admin's own policies wouldn't let them read.
+ */
+export async function locumRemovalCheck(locumId: string): Promise<RemovalCheck> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("locum_delete_check", { p_locum_id: locumId });
+
+  if (error) {
+    console.error("[locumRemovalCheck] failed:", error.message);
+    return {
+      bookingsTotal: 0,
+      bookingsUpcoming: 0,
+      documents: 0,
+      canDelete: false,
+      unavailable: /could not find the function|schema cache/i.test(error.message)
+        ? "Run migration 0013_archive_and_delete_locums.sql in Supabase to enable this."
+        : "We couldn't check this locum's booking history just now.",
+    };
+  }
+
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row) {
+    return {
+      bookingsTotal: 0,
+      bookingsUpcoming: 0,
+      documents: 0,
+      canDelete: false,
+      unavailable: "That locum no longer exists.",
+    };
+  }
+
+  return {
+    bookingsTotal: row.bookings_total ?? 0,
+    bookingsUpcoming: row.bookings_upcoming ?? 0,
+    documents: row.documents ?? 0,
+    canDelete: Boolean(row.can_delete),
+  };
 }
 
 /** The bookings a locum has had, newest first. */

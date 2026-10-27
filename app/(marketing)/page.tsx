@@ -82,7 +82,7 @@ export default async function HomePage() {
 
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             <div className="flex flex-col rounded-2xl border border-line bg-white p-8">
-              <h3 className="text-2xl font-extrabold tracking-tight">I am a dental practice</h3>
+              <h3 className="text-2xl font-extrabold tracking-tight">I&apos;m a dental practice</h3>
               <p className="mt-2 text-muted">Cover a sickness, a holiday or a permanent gap — without ringing several agencies.</p>
               <ul className="my-6 space-y-2 text-[15px]">
                 {["Search by role, date, postcode and availability",

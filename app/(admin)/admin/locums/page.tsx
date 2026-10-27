@@ -1,12 +1,29 @@
 import Link from "next/link";
-import { listLocums, allRoles, ACCOUNT_STATUSES } from "@/features/locums/queries";
+import {
+  listLocums,
+  allRoles,
+  ACCOUNT_STATUSES,
+  DORMANT_AFTER_DAYS,
+  isDormant,
+} from "@/features/locums/queries";
 import { PageHeading } from "@/components/layout/portal-shell";
 import { AccountBadge, Badge } from "@/components/ui/badge";
+import { Banner } from "@/components/ui/form";
+import { stampDate } from "@/lib/format";
 import type { AccountStatus } from "@/lib/database.types";
 
 export const metadata = { title: "Locums — Brighttemp admin" };
 
-type Search = { q?: string; role?: string; status?: string; bookable?: string };
+type Search = {
+  q?: string;
+  role?: string;
+  status?: string;
+  bookable?: string;
+  activity?: string;
+  archived?: string;
+  /** Set by the redirect after a successful deletion. */
+  removed?: string;
+};
 
 /**
  * The roster: everyone on the books, not just the ones waiting for a decision.
@@ -18,13 +35,26 @@ export default async function AdminLocumsPage({
   searchParams: Promise<Search>;
 }) {
   const sp = await searchParams;
-  const [{ rows, truncated }, roles] = await Promise.all([
-    listLocums({ q: sp.q, roleId: sp.role, status: sp.status, bookable: sp.bookable }),
+  const showArchived = sp.archived === "yes";
+  const [{ rows, truncated, activityKnown }, roles] = await Promise.all([
+    listLocums({
+      q: sp.q,
+      roleId: sp.role,
+      status: sp.status,
+      bookable: sp.bookable,
+      activity: sp.activity,
+      includeArchived: showArchived,
+    }),
     allRoles(),
   ]);
 
-  const filtered = Boolean(sp.q || sp.role || sp.status || sp.bookable);
+  const filtered = Boolean(
+    sp.q || sp.role || sp.status || sp.bookable || sp.activity || showArchived,
+  );
   const bookable = rows.filter((r) => r.isBookable).length;
+  const dormant = activityKnown
+    ? rows.filter((r) => !r.archivedAt && isDormant(r)).length
+    : 0;
 
   const select =
     "rounded-lg border border-line bg-white px-3 py-2 text-sm text-[#12211F] outline-none focus-visible:ring-2 focus-visible:ring-amber";
@@ -73,6 +103,27 @@ export default async function AdminLocumsPage({
           <option value="yes">In search</option>
           <option value="no">Not in search</option>
         </select>
+        {activityKnown ? (
+          <select
+            name="activity"
+            defaultValue={sp.activity ?? ""}
+            aria-label="Activity"
+            className={select}
+          >
+            <option value="">Any activity</option>
+            <option value="dormant">Dormant — never booked, no recent sign-in</option>
+          </select>
+        ) : null}
+        <label className="flex items-center gap-2 self-center text-sm text-muted">
+          <input
+            type="checkbox"
+            name="archived"
+            value="yes"
+            defaultChecked={showArchived}
+            className="h-4 w-4 rounded border-line"
+          />
+          Show archived
+        </label>
         <button className="rounded-full bg-pine px-5 py-2 text-sm font-semibold text-white">
           Apply
         </button>
@@ -86,11 +137,35 @@ export default async function AdminLocumsPage({
         ) : null}
       </form>
 
+      {sp.removed ? (
+        <div className="mb-4">
+          <Banner tone="success">
+            {sp.removed} has been deleted — account, login and uploaded documents.
+          </Banner>
+        </div>
+      ) : null}
+
       <p className="mb-4 text-sm text-muted">
         {rows.length} {rows.length === 1 ? "locum" : "locums"}
         {rows.length > 0 ? ` · ${bookable} currently in practice search` : ""}
+        {dormant > 0 && sp.activity !== "dormant" ? (
+          <>
+            {" · "}
+            <Link href="/admin/locums?activity=dormant" className="underline">
+              {dormant} dormant
+            </Link>
+          </>
+        ) : null}
         {truncated ? " · showing the first 500, narrow the filters to see more" : ""}
       </p>
+
+      {sp.activity === "dormant" ? (
+        <p className="mb-4 rounded-lg border border-line bg-[#F7F4EC] px-4 py-3 text-sm text-muted">
+          Never had a booking, and either never signed in or not for{" "}
+          {DORMANT_AFTER_DAYS} days. Nothing is lost by deleting these — open one
+          to do it.
+        </p>
+      ) : null}
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-line bg-white px-5 py-8 text-center text-muted">
@@ -98,7 +173,7 @@ export default async function AdminLocumsPage({
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-line bg-white">
-          <table className="w-full min-w-[46rem] text-sm">
+          <table className="w-full min-w-[58rem] text-sm">
             <thead>
               <tr className="bg-[#EAF0EA] text-left text-muted">
                 <th className="px-4 py-3 font-semibold">Name</th>
@@ -106,6 +181,10 @@ export default async function AdminLocumsPage({
                 <th className="px-4 py-3 font-semibold">Based</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Documents</th>
+                {activityKnown ? (
+                  <th className="px-4 py-3 font-semibold">Last sign-in</th>
+                ) : null}
+                <th className="px-4 py-3 font-semibold">Bookings</th>
                 <th className="px-4 py-3 font-semibold">In search</th>
               </tr>
             </thead>
@@ -128,9 +207,31 @@ export default async function AdminLocumsPage({
                   <td className="px-4 py-3">{r.basePostcode}</td>
                   <td className="px-4 py-3">
                     <AccountBadge status={r.status as AccountStatus} />
+                    {r.archivedAt ? (
+                      <div className="mt-1">
+                        <Badge tone="neutral">Archived</Badge>
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">
                     <DocumentSummary compliance={r.compliance} />
+                  </td>
+                  {activityKnown ? (
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {r.lastSeenAt ? (
+                        stampDate(r.lastSeenAt)
+                      ) : (
+                        <span className="text-muted">Never</span>
+                      )}
+                      {!r.archivedAt && isDormant(r) ? (
+                        <div className="mt-1">
+                          <Badge tone="amber">Dormant</Badge>
+                        </div>
+                      ) : null}
+                    </td>
+                  ) : null}
+                  <td className="px-4 py-3">
+                    {r.bookings > 0 ? r.bookings : <span className="text-muted">None</span>}
                   </td>
                   <td className="px-4 py-3">
                     {r.isBookable ? (
