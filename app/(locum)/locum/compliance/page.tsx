@@ -41,6 +41,8 @@ export default async function CompliancePage() {
               ) : null}
             </div>
 
+            {row.hint ? <p className="mb-3 text-sm text-muted">{row.hint}</p> : null}
+
             {row.document?.status === "rejected" && row.document.rejection_reason ? (
               <p className="mb-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-800">
                 {row.document.rejection_reason}

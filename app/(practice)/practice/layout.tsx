@@ -4,6 +4,7 @@ import { PortalShell } from "@/components/layout/portal-shell";
 const NAV = [
   { href: "/practice", label: "Dashboard" },
   { href: "/practice/search", label: "Find cover" },
+  { href: "/practice/shifts", label: "Open shifts" },
   { href: "/practice/bookings", label: "Bookings" },
   { href: "/practice/favourites", label: "Favourites" },
   { href: "/practice/invoices", label: "Invoices" },

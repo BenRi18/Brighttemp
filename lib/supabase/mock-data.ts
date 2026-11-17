@@ -111,7 +111,7 @@ export function buildMockData() {
 
   const practiceBase = {
     trading_name: null, address_line2: null, cqc_provider_id: null, billing_address: null,
-    vat_number: null, payment_terms_days: 14, purchase_order_required: false,
+    vat_number: null, payment_terms_days: 7, purchase_order_required: false,
     suspended_at: null, suspension_reason: null, created_at: now(), updated_at: now(),
   };
   const practices: Row[] = [

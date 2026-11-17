@@ -20,6 +20,17 @@ export const DOC_LABELS: Record<(typeof DOC_TYPES)[number], string> = {
   infection_control: "Infection control training",
 };
 
+/**
+ * What counts, where the label alone leaves it open. Shown under the heading
+ * on the locum's compliance page and on the admin review card.
+ *
+ * Only filled in where it changes what someone uploads — a blank here means
+ * the label says enough on its own, and a hint nobody needs is just noise.
+ */
+export const DOC_HINTS: Partial<Record<(typeof DOC_TYPES)[number], string>> = {
+  photo_id: "Passport or driving licence only. Photo page, in date, all four corners visible.",
+};
+
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/heic"];
 

@@ -1,7 +1,7 @@
 import { pendingDocuments } from "@/features/compliance/queries";
 import { DocumentReview } from "@/features/compliance/components/document-review";
 import { PageHeading } from "@/components/layout/portal-shell";
-import { DOC_LABELS } from "@/features/compliance/schema";
+import { DOC_LABELS, DOC_HINTS } from "@/features/compliance/schema";
 
 export default async function AdminCompliancePage() {
   const documents = await pendingDocuments();
@@ -23,6 +23,7 @@ export default async function AdminCompliancePage() {
               documentId={d.id}
               storagePath={d.storage_path}
               label={DOC_LABELS[d.doc_type]}
+              hint={DOC_HINTS[d.doc_type]}
               locumName={d.locums?.profiles?.full_name ?? "Unnamed"}
               roleName={d.locums?.roles?.name ?? ""}
               expiryDate={d.expiry_date}

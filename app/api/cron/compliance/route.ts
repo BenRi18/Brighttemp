@@ -27,5 +27,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, documentsChanged: data ?? 0 });
+  // Shifts nobody took. Yesterday's gap is not a gap anyone can fill, and
+  // leaving them open keeps them on the board and in the counts for ever.
+  // Not worth its own schedule, and a failure here must not lose the
+  // compliance result above, which is the one that matters.
+  const { data: expired, error: shiftError } = await supabase.rpc("expire_open_shifts");
+  if (shiftError) console.error("shift expiry failed", shiftError.message);
+
+  return NextResponse.json({
+    ok: true,
+    documentsChanged: data ?? 0,
+    shiftsExpired: shiftError ? null : (expired ?? 0),
+  });
 }

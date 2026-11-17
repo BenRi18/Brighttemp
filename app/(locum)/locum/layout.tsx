@@ -2,7 +2,8 @@ import { requireLocum } from "@/features/auth/session";
 import { PortalShell } from "@/components/layout/portal-shell";
 
 const NAV = [
-  { href: "/locum", label: "Shifts" },
+  { href: "/locum", label: "My shifts" },
+  { href: "/locum/shifts", label: "Shift board" },
   { href: "/locum/availability", label: "Availability" },
   { href: "/locum/compliance", label: "Documents" },
   { href: "/locum/rates", label: "Rates" },

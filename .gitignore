@@ -24,6 +24,5 @@ Thumbs.db
 # logs
 npm-debug.log*
 
-supabase/migrations/
 supabase/email_templates/
 supabase/seed/

@@ -1,11 +1,13 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { DOC_TYPES, DOC_LABELS } from "./schema";
+import { DOC_TYPES, DOC_LABELS, DOC_HINTS } from "./schema";
 import type { ComplianceDocument, Enums } from "@/lib/database.types";
 
 export type ChecklistRow = {
   docType: Enums<"compliance_doc_type">;
   label: string;
+  /** What specifically counts, where the label leaves it open. Null for most. */
+  hint: string | null;
   mandatory: boolean;
   /** Some documents genuinely never expire — a Hep B vaccination, for one. */
   requiresExpiry: boolean;
@@ -38,6 +40,7 @@ export async function complianceChecklist(locumId: string, roleId: string): Prom
     .map((r) => ({
       docType: r.doc_type,
       label: DOC_LABELS[r.doc_type],
+      hint: DOC_HINTS[r.doc_type] ?? null,
       mandatory: r.is_mandatory,
       requiresExpiry: r.requires_expiry,
       document: byType.get(r.doc_type) ?? null,

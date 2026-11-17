@@ -9,6 +9,7 @@ export function DocumentReview({
   documentId,
   storagePath,
   label,
+  hint,
   locumName,
   roleName,
   expiryDate,
@@ -17,6 +18,8 @@ export function DocumentReview({
   documentId: string;
   storagePath: string;
   label: string;
+  /** What this document has to be, so the standard is applied the same way every time. */
+  hint?: string | null;
   locumName: string;
   roleName: string;
   expiryDate: string | null;
@@ -41,6 +44,7 @@ export function DocumentReview({
             {expiryDate ? ` · expires ${new Date(expiryDate).toLocaleDateString("en-GB")}` : ""}
             {reference ? ` · ref ${reference}` : ""}
           </p>
+          {hint ? <p className="mt-1 text-sm text-muted">Must be: {hint}</p> : null}
         </div>
 
         {/* Opens a short-lived signed URL; the bucket itself stays private. */}
