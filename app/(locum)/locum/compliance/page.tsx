@@ -10,12 +10,20 @@ export default async function CompliancePage() {
   const outstanding = checklist.filter(
     (r) => r.mandatory && (!r.document || !["approved", "expiring_soon"].includes(r.document.status)),
   ).length;
+  // Not every role needs every document. A receptionist is not clinical
+  // staff, so only photo ID is compulsory for them — telling them all of it
+  // is required would be both wrong and discouraging.
+  const optional = checklist.filter((r) => !r.mandatory).length;
 
   return (
     <>
       <PageHeading
         title="Compliance documents"
-        lede="Practices never see these files — only that you're cleared. All of them have to be in date for you to appear in search."
+        lede={
+          optional > 0
+            ? "Practices never see these files — only that you're cleared. The ones marked required have to be in date for you to appear in search."
+            : "Practices never see these files — only that you're cleared. All of them have to be in date for you to appear in search."
+        }
       />
 
       {outstanding > 0 && (
@@ -29,6 +37,11 @@ export default async function CompliancePage() {
           <div key={row.docType} className="rounded-xl border border-line bg-white p-5">
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <h2 className="font-bold">{row.label}</h2>
+              {!row.mandatory ? (
+                <span className="rounded-full bg-[#EAF0EA] px-2.5 py-0.5 text-xs font-semibold text-muted">
+                  Optional
+                </span>
+              ) : null}
               {row.document ? (
                 <DocumentBadge status={row.document.status} />
               ) : (
