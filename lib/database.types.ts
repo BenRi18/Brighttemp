@@ -1186,6 +1186,8 @@ export type Database = {
           vat_number: string | null;
           payment_terms_days: number;
           purchase_order_required: boolean;
+          /** Practice Brighttemp runs by phone: no login, no portal access. */
+          is_managed: boolean;
           approved_at: string | null;
           approved_by: string | null;
           suspended_at: string | null;
@@ -1213,6 +1215,7 @@ export type Database = {
           vat_number?: string | null;
           payment_terms_days?: number;
           purchase_order_required?: boolean;
+          is_managed?: boolean;
           approved_at?: string | null;
           approved_by?: string | null;
           suspended_at?: string | null;
@@ -1240,6 +1243,7 @@ export type Database = {
           vat_number?: string | null;
           payment_terms_days?: number;
           purchase_order_required?: boolean;
+          is_managed?: boolean;
           approved_at?: string | null;
           approved_by?: string | null;
           suspended_at?: string | null;
@@ -1442,6 +1446,21 @@ export type Database = {
       admin_unarchive_locum: {
         Args: { p_locum_id: string };
         Returns: { locum_id: string; is_bookable: boolean }[];
+      };
+      admin_create_practice: {
+        Args: {
+          p_name: string; p_address_line1: string; p_city: string; p_postcode: string;
+          p_latitude: number; p_longitude: number;
+          p_phone?: string | null; p_email?: string | null; p_address_line2?: string | null;
+        };
+        Returns: string;
+      };
+      practices_for_posting: {
+        Args: Record<string, never>;
+        Returns: {
+          practice_id: string; name: string; city: string | null;
+          postcode: string; is_managed: boolean;
+        }[];
       };
       admin_locum_activity: {
         Args: Record<string, never>;

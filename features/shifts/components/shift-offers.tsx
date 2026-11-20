@@ -16,7 +16,17 @@ import { money, hourly, shiftDate, shiftTimes } from "@/lib/format";
  * the total for the shift next to it, because an hourly rate on its own is
  * not what the practice pays.
  */
-export function ShiftOffers({ shift }: { shift: PracticeShift }) {
+export function ShiftOffers({
+  shift,
+  portal = "practice",
+  practiceName,
+}: {
+  shift: PracticeShift;
+  /** Which side is looking. Decides where the booking link points. */
+  portal?: "practice" | "admin";
+  /** Shown only on the agency view, where shifts from several practices mix. */
+  practiceName?: string;
+}) {
   const [awardState, award] = useActionState<ActionState, FormData>(awardShift, {});
   const [withdrawState, withdraw] = useActionState<ActionState, FormData>(withdrawShift, {});
 
@@ -29,6 +39,7 @@ export function ShiftOffers({ shift }: { shift: PracticeShift }) {
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-bold">
+            {practiceName ? `${practiceName} · ` : ""}
             {shift.roleName} — {shiftDate(shift.shiftDate)}
           </h3>
           <p className="text-sm text-muted">
@@ -52,7 +63,7 @@ export function ShiftOffers({ shift }: { shift: PracticeShift }) {
           {shift.bookingId ? (
             <>
               {" "}
-              <Link href={`/practice/bookings/${shift.bookingId}`} className="underline">
+              <Link href={`/${portal}/bookings/${shift.bookingId}`} className="underline">
                 Open the booking
               </Link>
             </>

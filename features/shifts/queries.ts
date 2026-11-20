@@ -77,6 +77,69 @@ export type PracticeShift = {
   claims: ShiftClaimRow[];
 };
 
+export type PostingPractice = {
+  id: string;
+  name: string;
+  city: string | null;
+  postcode: string;
+  /** True for a practice Brighttemp runs by phone — no login, no portal. */
+  isManaged: boolean;
+};
+
+/**
+ * Practices an admin may post a shift for: approved, and with coordinates.
+ *
+ * A practice with no coordinates is left out deliberately. Its distance
+ * cannot be measured, so locum_may_claim would wave its shifts through to
+ * everyone regardless of how far away they are.
+ */
+export async function practicesForPosting(): Promise<PostingPractice[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("practices_for_posting");
+
+  if (error) {
+    console.error("[practicesForPosting] failed:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((p) => ({
+    id: p.practice_id,
+    name: p.name,
+    city: p.city,
+    postcode: p.postcode,
+    isManaged: p.is_managed,
+  }));
+}
+
+/** Every practice's shifts, for the agency view. Same shape as one practice's. */
+export async function allShifts(): Promise<(PracticeShift & { practiceName: string })[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("open_shifts")
+    .select(`
+      id, shift_date, start_time, finish_time, hours, notes, status, booking_id,
+      roles ( name ),
+      practices ( name, is_managed ),
+      shift_claims (
+        id, locum_id, hourly_rate, message, status,
+        locums ( years_experience, profiles!locums_profile_id_fkey ( full_name ) )
+      )
+    `)
+    .order("shift_date", { ascending: false })
+    .limit(200);
+
+  if (error) {
+    console.error("[allShifts] failed:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((s) => ({
+    ...mapShift(s),
+    practiceName: s.practices?.name ?? "—",
+  }));
+}
+
 /** The practice's own shifts, newest gap first, with everyone who offered. */
 export async function shiftsForPractice(practiceId: string): Promise<PracticeShift[]> {
   const supabase = await createClient();
@@ -100,32 +163,36 @@ export async function shiftsForPractice(practiceId: string): Promise<PracticeShi
     return [];
   }
 
-  return (data ?? []).map((s) => {
-    const hours = Number(s.hours);
-    return {
-      id: s.id,
-      roleName: s.roles?.name ?? "—",
-      shiftDate: s.shift_date,
-      startTime: s.start_time,
-      finishTime: s.finish_time,
-      hours,
-      notes: s.notes,
-      status: s.status,
-      bookingId: s.booking_id,
-      claims: (s.shift_claims ?? [])
-        .map((c) => ({
-          claimId: c.id,
-          locumId: c.locum_id,
-          name: c.locums?.profiles?.full_name ?? "Unnamed",
-          yearsExperience: c.locums?.years_experience ?? 0,
-          hourlyRate: Number(c.hourly_rate),
-          total: Math.round(Number(c.hourly_rate) * hours * 100) / 100,
-          message: c.message,
-          status: c.status,
-        }))
-        // Cheapest first: with no rate on the post, cost is the thing the
-        // practice is comparing, and it should not have to hunt for it.
-        .sort((a, b) => a.hourlyRate - b.hourlyRate),
-    };
-  });
+  return (data ?? []).map(mapShift);
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/** Shared by both lists, so the two can never disagree about a shift. */
+function mapShift(s: any): PracticeShift {
+  const hours = Number(s.hours);
+  return {
+    id: s.id,
+    roleName: s.roles?.name ?? "—",
+    shiftDate: s.shift_date,
+    startTime: s.start_time,
+    finishTime: s.finish_time,
+    hours,
+    notes: s.notes,
+    status: s.status,
+    bookingId: s.booking_id,
+    claims: (s.shift_claims ?? [])
+      .map((c: any) => ({
+        claimId: c.id,
+        locumId: c.locum_id,
+        name: c.locums?.profiles?.full_name ?? "Unnamed",
+        yearsExperience: c.locums?.years_experience ?? 0,
+        hourlyRate: Number(c.hourly_rate),
+        total: Math.round(Number(c.hourly_rate) * hours * 100) / 100,
+        message: c.message,
+        status: c.status,
+      }))
+      // Cheapest first: with no rate on the post, cost is the thing the
+      // practice is comparing, and it should not have to hunt for it.
+      .sort((a: ShiftClaimRow, b: ShiftClaimRow) => a.hourlyRate - b.hourlyRate),
+  };
 }

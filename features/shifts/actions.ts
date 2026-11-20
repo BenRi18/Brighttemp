@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requirePractice, requireLocum } from "@/features/auth/session";
+import { requirePractice, requireLocum, requirePracticeOrAdmin } from "@/features/auth/session";
 import {
   postShiftSchema,
   claimShiftSchema,
@@ -56,7 +56,7 @@ export async function withdrawShift(_: ActionState, formData: FormData): Promise
   const parsed = shiftIdSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Invalid request." };
 
-  await requirePractice();
+  await requirePracticeOrAdmin();
   const supabase = await createClient();
 
   const { error } = await supabase.rpc("withdraw_shift", { p_shift_id: parsed.data.shiftId });
@@ -66,6 +66,7 @@ export async function withdrawShift(_: ActionState, formData: FormData): Promise
   }
 
   revalidatePath("/practice/shifts");
+  revalidatePath("/admin/shifts");
   return { message: "Taken down. Anyone who offered has been told." };
 }
 
@@ -81,7 +82,7 @@ export async function awardShift(_: ActionState, formData: FormData): Promise<Ac
   const parsed = awardShiftSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Invalid request." };
 
-  await requirePractice();
+  await requirePracticeOrAdmin();
   const supabase = await createClient();
 
   const { error } = await supabase.rpc("award_shift", {
@@ -96,6 +97,7 @@ export async function awardShift(_: ActionState, formData: FormData): Promise<Ac
 
   revalidatePath("/practice/shifts");
   revalidatePath("/practice/bookings");
+  revalidatePath("/admin/shifts");
   return { message: "Booked and confirmed. Both of you have been sent the details." };
 }
 

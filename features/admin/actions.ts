@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAccount } from "@/features/auth/session";
 import { enqueue } from "@/features/notifications/enqueue";
+import { geocodePostcode } from "@/lib/geocode";
 import {
   approvalSchema,
   rateDecisionSchema,
@@ -14,6 +15,8 @@ import {
   trustSchema,
   archiveSchema,
   deleteLocumSchema,
+  managedPracticeSchema,
+  adminPostShiftSchema,
 } from "./schema";
 import type { ActionState } from "@/features/auth/actions";
 
@@ -268,6 +271,117 @@ export async function setTrustLevel(_: ActionState, formData: FormData): Promise
         ? "Practice can now book instantly."
         : "Practice bookings will need approval.",
   };
+}
+
+/**
+ * Add a practice that deals with Brighttemp by phone.
+ *
+ * It gets no login and nobody from it sees the portal — it exists so that a
+ * phoned-in shift has something to attach a booking and an invoice to.
+ *
+ * The postcode is geocoded before the row is written, and the insert is
+ * refused without coordinates. That is not fussiness: locum_may_claim reads
+ * a practice with no latitude as "distance unknown" and shows its shifts to
+ * every locum of the right role whatever the distance, so a practice saved
+ * without them would quietly ignore everybody's travel radius.
+ */
+export async function createManagedPractice(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = managedPracticeSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]> };
+  }
+
+  await adminOnly();
+  const d = parsed.data;
+
+  const coords = await geocodePostcode(d.postcode);
+  if (!coords) {
+    return {
+      fieldErrors: { postcode: ["We couldn't find that postcode. Check and try again."] },
+    };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_create_practice", {
+    p_name: d.name,
+    p_address_line1: d.addressLine1,
+    p_address_line2: d.addressLine2 || null,
+    p_city: d.city,
+    p_postcode: d.postcode,
+    p_latitude: coords.latitude,
+    p_longitude: coords.longitude,
+    p_phone: d.phone || null,
+    p_email: d.email || null,
+  });
+
+  if (error) {
+    console.error("[createManagedPractice] failed:", error.message);
+    return { error: shiftErrorMessage(error.message) };
+  }
+
+  revalidatePath("/admin/shifts");
+  revalidatePath("/admin/practices");
+  return { message: `${d.name} added. You can post shifts for them now.` };
+}
+
+/**
+ * Post a shift for a practice that rang up.
+ *
+ * The row is identical to one a practice posts for itself — same table, same
+ * notifications, same claiming. created_by records that Brighttemp typed it,
+ * which is the only difference afterwards.
+ */
+export async function adminPostShift(_: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = adminPostShiftSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]> };
+  }
+
+  const account = await adminOnly();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("open_shifts").insert({
+    practice_id: parsed.data.practiceId,
+    role_id: parsed.data.roleId,
+    shift_date: parsed.data.shiftDate,
+    start_time: parsed.data.startTime,
+    finish_time: parsed.data.finishTime,
+    notes: parsed.data.notes || null,
+    created_by: account.profile.id,
+  });
+
+  if (error) {
+    console.error("[adminPostShift] failed:", error.message);
+    return { error: shiftErrorMessage(error.message) };
+  }
+
+  revalidatePath("/admin/shifts");
+  return {
+    message:
+      "Posted. Every locum who could cover it has been told — you'll see them here as they offer.",
+  };
+}
+
+/** Errors from the shift and practice functions, in words an admin can act on. */
+function shiftErrorMessage(message: string): string {
+  if (/could not find the function|schema cache/i.test(message)) {
+    return "The database is missing an update — run migration 0020_agency_posted_shifts.sql in Supabase.";
+  }
+  if (/placed on the map|needs a name|already |no longer/i.test(message)) {
+    return message.replace(/^.*?:\s*/, "");
+  }
+  if (/duplicate key/i.test(message)) {
+    return "A practice with those details already exists — search for it in the list instead.";
+  }
+  if (/not authorised|permission denied|row-level security/i.test(message)) {
+    return "Your account doesn't have permission for that.";
+  }
+  return process.env.NODE_ENV === "development"
+    ? `Failed: ${message}`
+    : "That didn't go through. Try again.";
 }
 
 /**

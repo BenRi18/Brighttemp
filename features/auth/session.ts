@@ -87,6 +87,24 @@ export async function requirePractice() {
   return { ...account, practice: account.practice };
 }
 
+/**
+ * For actions a practice manager and an admin both take on the same row —
+ * awarding a shift, taking one down.
+ *
+ * Deliberately loose, because it is not the real check: the database
+ * functions behind these actions authorise properly, down to which practice
+ * the row belongs to. This only keeps a signed-out visitor or a locum from
+ * reaching the action at all, and spares us two near-identical copies of
+ * every shift action and of the component that calls them.
+ */
+export async function requirePracticeOrAdmin() {
+  const account = await requireAccount();
+  const isPractice = account.profile.user_type === "practice" && account.practice !== null;
+  const isAdmin = account.admin !== null && account.admin.is_active;
+  if (!isPractice && !isAdmin) redirect("/");
+  return account;
+}
+
 /** Gate for /locum/*. An unapproved locum can still build their profile. */
 export async function requireLocum(options: { requireApproved?: boolean } = {}) {
   const account = await requireAccount();
